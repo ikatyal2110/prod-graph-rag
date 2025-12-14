@@ -1,0 +1,227 @@
+[
+  {
+    "doc_id": "kep-1040-priority-and-fairness",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/1040-priority-and-fairness/README.md",
+    "related_components": ["kube-apiserver", "etcd", "kube-scheduler", "kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-1281-network-proxy",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/1281-network-proxy/README.md",
+    "related_components": ["kube-apiserver", "etcd"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-1610-container-resource-autoscaling",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-autoscaling/1610-container-resource-autoscaling/README.md",
+    "related_components": ["kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-2021-scale-from-zero",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-autoscaling/2021-scale-from-zero/README.md",
+    "related_components": ["kube-scheduler", "kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-2339-storageversion-api",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/2339-storageversion-api-for-ha-api-servers/README.md",
+    "related_components": ["kube-apiserver", "etcd"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-265-ipvs-load-balancing",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/265-ipvs-based-load-balancing/README.md",
+    "related_components": ["networking"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-281-dynamic-kubelet-configuration",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-node/281-dynamic-kubelet-configuration/README.md",
+    "related_components": ["kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-2862-fine-grained-kubelet-authz",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-node/2862-fine-grained-kubelet-authz/README.md",
+    "related_components": ["kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-4080-generic-controlplane",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-api-machinery/4080-generic-controlplane/README.md",
+    "related_components": ["kube-apiserver", "kube-controller-manager"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-4326-downgrade",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-etcd/4326-downgrade/README.md",
+    "related_components": ["etcd"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-4331-livez-readyz",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-etcd/4331-livez-readyz/README.md",
+    "related_components": ["etcd"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-4743-kubernetes-etcd-interface",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-etcd/4743-kuberernetes-etcd-interface/README.md",
+    "related_components": ["etcd", "kube-apiserver"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-624-scheduling-framework",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-scheduling/624-scheduling-framework/README.md",
+    "related_components": ["kube-scheduler"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-752-endpointslices",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-network/0752-endpointslices/README.md",
+    "related_components": ["networking"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kep-785-scheduler-component-config",
+    "doc_type": "kep",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/enhancements/blob/master/keps/sig-scheduling/785-scheduler-component-config-api/README.md",
+    "related_components": ["kube-scheduler"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "cluster-architecture",
+    "doc_type": "architecture",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/architecture/_index.md",
+    "related_components": ["kube-apiserver", "etcd", "kube-scheduler", "kube-controller-manager", "kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "control-plane-node-communication",
+    "doc_type": "architecture",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/architecture/control-plane-node-communication.md",
+    "related_components": ["kube-apiserver", "kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "controller",
+    "doc_type": "architecture",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/architecture/controller.md",
+    "related_components": ["kube-controller-manager", "kube-apiserver"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "etcd-operations",
+    "doc_type": "architecture",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/tasks/administer-cluster/configure-upgrade-etcd.md",
+    "related_components": ["etcd"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kube-scheduler",
+    "doc_type": "architecture",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/scheduling-eviction/kube-scheduler.md",
+    "related_components": ["kube-scheduler", "kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "kubelet-config-file",
+    "doc_type": "architecture",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/tasks/administer-cluster/kubelet-config-file.md",
+    "related_components": ["kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "nodes",
+    "doc_type": "architecture",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/architecture/nodes.md",
+    "related_components": ["kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "incident-124930",
+    "doc_type": "incident",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/kubernetes/issues/124930",
+    "related_components": ["kube-scheduler"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "incident-128638",
+    "doc_type": "incident",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/kubernetes/issues/128638",
+    "related_components": ["kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "incident-128709",
+    "doc_type": "incident",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/kubernetes/issues/128709",
+    "related_components": ["kubelet", "kube-apiserver"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "incident-129982",
+    "doc_type": "incident",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/kubernetes/issues/129982",
+    "related_components": ["networking"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "incident-135333",
+    "doc_type": "incident",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/kubernetes/issues/135333",
+    "related_components": ["kube-apiserver"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  },
+  {
+    "doc_id": "incident-78308",
+    "doc_type": "incident",
+    "system": "kubernetes",
+    "source_url": "https://github.com/kubernetes/kubernetes/issues/78308",
+    "related_components": ["kubelet"],
+    "date_collected": "2025-12-14T19:22:28Z"
+  }
+]
+
