@@ -736,17 +736,32 @@
     {
       "from": "128638",
       "to": "kubelet",
-      "type": "AFFECTS"
+      "type": "AFFECTS",
+      "attributes": {
+        "evidence_refs": [
+          "src_128638"
+        ]
+      }
     },
     {
       "from": "128638",
       "to": "crash",
-      "type": "EXHIBITS"
+      "type": "EXHIBITS",
+      "attributes": {
+        "evidence_refs": [
+          "src_128638"
+        ]
+      }
     },
     {
       "from": "128638",
       "to": "unsynchronized-concurrent-access",
-      "type": "CAUSED_BY"
+      "type": "CAUSED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_128638"
+        ]
+      }
     },
     {
       "from": "unsynchronized-concurrent-access",
@@ -766,12 +781,22 @@
     {
       "from": "kubelet",
       "to": "containerMap",
-      "type": "USES"
+      "type": "USES",
+      "attributes": {
+        "evidence_refs": [
+          "src_128638"
+        ]
+      }
     },
     {
       "from": "kubelet",
       "to": "ContainerMap.Add",
-      "type": "USES"
+      "type": "USES",
+      "attributes": {
+        "evidence_refs": [
+          "src_128638"
+        ]
+      }
     },
     {
       "from": "128638",
@@ -786,22 +811,42 @@
     {
       "from": "124930",
       "to": "kube-scheduler",
-      "type": "AFFECTS"
+      "type": "AFFECTS",
+      "attributes": {
+        "evidence_refs": [
+          "src_124930"
+        ]
+      }
     },
     {
       "from": "124930",
       "to": "panic",
-      "type": "EXHIBITS"
+      "type": "EXHIBITS",
+      "attributes": {
+        "evidence_refs": [
+          "src_124930"
+        ]
+      }
     },
     {
       "from": "124930",
       "to": "division-by-zero",
-      "type": "CAUSED_BY"
+      "type": "CAUSED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_124930"
+        ]
+      }
     },
     {
       "from": "124930",
       "to": "pod-configuration",
-      "type": "TRIGGERED_BY"
+      "type": "TRIGGERED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_124930"
+        ]
+      }
     },
     {
       "from": "division-by-zero",
@@ -826,27 +871,52 @@
     {
       "from": "129982",
       "to": "kube-proxy",
-      "type": "AFFECTS"
+      "type": "AFFECTS",
+      "attributes": {
+        "evidence_refs": [
+          "src_129982"
+        ]
+      }
     },
     {
       "from": "129982",
       "to": "oom",
-      "type": "EXHIBITS"
+      "type": "EXHIBITS",
+      "attributes": {
+        "evidence_refs": [
+          "src_129982"
+        ]
+      }
     },
     {
       "from": "129982",
       "to": "unbounded-memory-growth",
-      "type": "CAUSED_BY"
+      "type": "CAUSED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_129982"
+        ]
+      }
     },
     {
       "from": "129982",
       "to": "udp-endpoint-change",
-      "type": "TRIGGERED_BY"
+      "type": "TRIGGERED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_129982"
+        ]
+      }
     },
     {
       "from": "129982",
       "to": "pod-with-udp-port-update",
-      "type": "TRIGGERED_BY"
+      "type": "TRIGGERED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_129982"
+        ]
+      }
     },
     {
       "from": "unbounded-memory-growth",
@@ -891,17 +961,32 @@
     {
       "from": "135333",
       "to": "kube-apiserver",
-      "type": "AFFECTS"
+      "type": "AFFECTS",
+      "attributes": {
+        "evidence_refs": [
+          "src_135333"
+        ]
+      }
     },
     {
       "from": "135333",
       "to": "validation_error",
-      "type": "EXHIBITS"
+      "type": "EXHIBITS",
+      "attributes": {
+        "evidence_refs": [
+          "src_135333"
+        ]
+      }
     },
     {
       "from": "135333",
       "to": "validation-gaps",
-      "type": "CAUSED_BY"
+      "type": "CAUSED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_135333"
+        ]
+      }
     },
     {
       "from": "ipallocator.go",
@@ -921,7 +1006,12 @@
     {
       "from": "kube-apiserver",
       "to": "ipallocator.go",
-      "type": "USES"
+      "type": "USES",
+      "attributes": {
+        "evidence_refs": [
+          "src_135333"
+        ]
+      }
     },
     {
       "from": "kube-apiserver",
@@ -941,22 +1031,42 @@
     {
       "from": "128709",
       "to": "kube-apiserver",
-      "type": "AFFECTS"
+      "type": "AFFECTS",
+      "attributes": {
+        "evidence_refs": [
+          "src_128709"
+        ]
+      }
     },
     {
       "from": "128709",
       "to": "validation_error",
-      "type": "EXHIBITS"
+      "type": "EXHIBITS",
+      "attributes": {
+        "evidence_refs": [
+          "src_128709"
+        ]
+      }
     },
     {
       "from": "128709",
       "to": "validation-error",
-      "type": "CAUSED_BY"
+      "type": "CAUSED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_128709"
+        ]
+      }
     },
     {
       "from": "128709",
       "to": "podlogsquerysplitsstreams-feature-gate",
-      "type": "TRIGGERED_BY"
+      "type": "TRIGGERED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_128709"
+        ]
+      }
     },
     {
       "from": "podlogsquerysplitsstreams-feature-gate",
@@ -976,27 +1086,52 @@
     {
       "from": "78308",
       "to": "kubelet",
-      "type": "AFFECTS"
+      "type": "AFFECTS",
+      "attributes": {
+        "evidence_refs": [
+          "src_78308"
+        ]
+      }
     },
     {
       "from": "78308",
       "to": "degradation",
-      "type": "EXHIBITS"
+      "type": "EXHIBITS",
+      "attributes": {
+        "evidence_refs": [
+          "src_78308"
+        ]
+      }
     },
     {
       "from": "78308",
       "to": "incorrect-lifecycle-state-handling",
-      "type": "CAUSED_BY"
+      "type": "CAUSED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_78308"
+        ]
+      }
     },
     {
       "from": "78308",
       "to": "container-restart",
-      "type": "TRIGGERED_BY"
+      "type": "TRIGGERED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_78308"
+        ]
+      }
     },
     {
       "from": "78308",
       "to": "pre-pulled-image",
-      "type": "TRIGGERED_BY"
+      "type": "TRIGGERED_BY",
+      "attributes": {
+        "evidence_refs": [
+          "src_78308"
+        ]
+      }
     },
     {
       "from": "incorrect-lifecycle-state-handling",
@@ -1327,6 +1462,50 @@
       "from": "container-resource-autoscaling",
       "to": "resource-scaling",
       "type": "INVOLVES"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_128638",
+      "kind": "github_issue",
+      "title": "kubelet crash - concurrent map writes",
+      "url": "https://github.com/kubernetes/kubernetes/issues/128638",
+      "ref": "kubernetes/kubernetes#128638"
+    },
+    {
+      "id": "src_124930",
+      "kind": "github_issue",
+      "title": "kube-scheduler panic - integer divide by zero",
+      "url": "https://github.com/kubernetes/kubernetes/issues/124930",
+      "ref": "kubernetes/kubernetes#124930"
+    },
+    {
+      "id": "src_129982",
+      "kind": "github_issue",
+      "title": "kube-proxy out of memory - conntrack cleanup",
+      "url": "https://github.com/kubernetes/kubernetes/issues/129982",
+      "ref": "kubernetes/kubernetes#129982"
+    },
+    {
+      "id": "src_135333",
+      "kind": "github_issue",
+      "title": "api server creates invalid IP address objects when service name is empty",
+      "url": "https://github.com/kubernetes/kubernetes/issues/135333",
+      "ref": "kubernetes/kubernetes#135333"
+    },
+    {
+      "id": "src_128709",
+      "kind": "github_issue",
+      "title": "validation error when accessing pod logs without stream parameter with PodLogsQuerySplitStreams feature gate",
+      "url": "https://github.com/kubernetes/kubernetes/issues/128709",
+      "ref": "kubernetes/kubernetes#128709"
+    },
+    {
+      "id": "src_78308",
+      "kind": "github_issue",
+      "title": "kubelet degradation - incorrect lifecycle state handling",
+      "url": "https://github.com/kubernetes/kubernetes/issues/78308",
+      "ref": "kubernetes/kubernetes#78308"
     }
   ]
 }

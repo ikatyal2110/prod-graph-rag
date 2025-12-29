@@ -4,3 +4,6 @@ eval/results.json
 
 # eval outputs
 eval/results*.json
+
+echo "__pycache__/" >> .gitignore
+

@@ -10,11 +10,22 @@ class Anchor(BaseModel):
     type: str = Field(..., description="Entity type")
 
 
+class Source(BaseModel):
+    """Source reference for provenance"""
+    id: str = Field(..., description="Source ID")
+    kind: str = Field(..., description="Source kind (github_issue, doc, kep)")
+    title: Optional[str] = Field(default=None, description="Source title")
+    url: Optional[str] = Field(default=None, description="Source URL")
+    ref: Optional[str] = Field(default=None, description="Source reference")
+
+
 class Fact(BaseModel):
     """Graph fact (relationship)"""
     from_id: str = Field(..., alias="from", description="Source entity ID")
     rel: str = Field(..., description="Relationship type")
     to_id: str = Field(..., alias="to", description="Target entity ID")
+    evidence_refs: List[str] = Field(default=[], description="Source references for this fact")
+    sources: List[Source] = Field(default=[], description="Resolved source objects")
     
     class Config:
         populate_by_name = True
@@ -76,6 +87,8 @@ class FactDetail(BaseModel):
     from_id: str = Field(..., alias="from", description="Source entity ID")
     rel: str = Field(..., description="Relationship type")
     to_id: str = Field(..., alias="to", description="Target entity ID")
+    evidence_refs: List[str] = Field(default=[], description="Source references for this fact")
+    sources: List[Source] = Field(default=[], description="Resolved source objects")
     
     class Config:
         populate_by_name = True

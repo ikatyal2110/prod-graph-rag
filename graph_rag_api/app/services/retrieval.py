@@ -13,6 +13,7 @@ from app.utils.normalize import normalize_and_enhance_tokens, extract_canonical_
 from app.utils.code_detection import is_code_query
 from app.utils.artifact_detection import mentions_artifact
 from app.models.api import Anchor, Fact, Evidence, Stats
+from app.utils.sources import resolve_sources
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -625,7 +626,8 @@ class RetrievalService:
                     WHERE i.id IN $incident_ids
                     MATCH (i)-[r:RELATIONSHIP]->(t:Entity)
                     WHERE r.type IN $allowed_types
-                    RETURN DISTINCT i.id AS from_id, r.type AS rel_type, t.id AS to_id
+                    RETURN DISTINCT i.id AS from_id, r.type AS rel_type, t.id AS to_id, 
+                           COALESCE(r.evidence_refs, []) AS evidence_refs
                     """
                     
                     result = session.run(
@@ -637,10 +639,14 @@ class RetrievalService:
                     # Collect facts with priority ordering
                     facts_list = []
                     for record in result:
+                        evidence_refs = record.get("evidence_refs", [])
+                        if evidence_refs is None:
+                            evidence_refs = []
                         facts_list.append({
                             "from": record["from_id"],
                             "rel": record["rel_type"],
-                            "to": record["to_id"]
+                            "to": record["to_id"],
+                            "evidence_refs": evidence_refs
                         })
                     
                     # Deduplicate facts at Python level (fallback for duplicate edges in DB)
@@ -712,15 +718,18 @@ class RetrievalService:
         # Limit facts
         limited_rels = relationships[:max_facts]
         
-        # Convert to Fact models
-        facts = [
-            Fact(
+        # Convert to Fact models with resolved sources
+        facts = []
+        for rel in limited_rels:
+            evidence_refs = rel.get("evidence_refs", [])
+            sources = resolve_sources(evidence_refs) if evidence_refs else []
+            facts.append(Fact(
                 from_id=rel["from"],
                 rel=rel["rel"],
-                to_id=rel["to"]
-            )
-            for rel in limited_rels
-        ]
+                to_id=rel["to"],
+                evidence_refs=evidence_refs,
+                sources=sources
+            ))
         
         # Compute stats: count unique nodes in facts
         node_ids = set(anchor_ids)  # Include anchors

@@ -72,11 +72,17 @@ def compute_metadata(graph_file: Path) -> Dict[str, Any]:
     # Count relationships by type
     relationship_type_counts = Counter()
     edge_endpoints = set()
+    edges_with_provenance = 0
+    required_edges_missing_provenance = 0
+    incident_ids = {e.get('id') for e in entities if e.get('type') == 'incident'}
+    required_provenance_types = ['AFFECTS', 'EXHIBITS', 'CAUSED_BY', 'TRIGGERED_BY', 'USES']
     
     for edge in edges:
         edge_from = edge.get('from')
         edge_to = edge.get('to')
         edge_type = edge.get('type')
+        edge_attrs = edge.get('attributes', {})
+        evidence_refs = edge_attrs.get('evidence_refs', [])
         
         # Schema validation: check required fields
         if not edge_from:
@@ -94,9 +100,22 @@ def compute_metadata(graph_file: Path) -> Dict[str, Any]:
         
         relationship_type_counts[edge_type] += 1
         edge_endpoints.add((edge_from, edge_to, edge_type))
+        
+        # Count provenance
+        if evidence_refs and len(evidence_refs) > 0:
+            edges_with_provenance += 1
+        
+        # Check if required edge is missing provenance
+        if edge_type in required_provenance_types and edge_from in incident_ids:
+            if not evidence_refs or len(evidence_refs) == 0:
+                required_edges_missing_provenance += 1
     
     # Compute SHA256 hash
     sha256 = compute_file_hash(graph_file)
+    
+    # Count sources
+    sources = graph_data.get('sources', [])
+    source_count = len(sources)
     
     # Build metadata with deterministic key ordering
     metadata = {
@@ -106,6 +125,9 @@ def compute_metadata(graph_file: Path) -> Dict[str, Any]:
         "incident_count": incident_count,
         "node_count": len(entities),
         "edge_count": len(edges),
+        "source_count": source_count,
+        "edges_with_provenance_count": edges_with_provenance,
+        "required_edges_missing_provenance_count": required_edges_missing_provenance,
         "node_type_counts": dict(sorted(node_type_counts.items())),
         "relationship_type_counts": dict(sorted(relationship_type_counts.items()))
     }

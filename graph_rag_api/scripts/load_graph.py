@@ -224,6 +224,7 @@ def load_edges(driver, database: str, edges: List[Dict[str, Any]], entity_lookup
         from_id = edge.get("from")
         to_id = edge.get("to")
         rel_type = edge.get("type", "RELATED_TO")
+        edge_attrs = edge.get("attributes", {})
         
         if not from_id or not to_id:
             skipped_count += 1
@@ -232,11 +233,20 @@ def load_edges(driver, database: str, edges: List[Dict[str, Any]], entity_lookup
         # Sanitize relationship type for use as Cypher relationship type
         sanitized_reltype = sanitize_reltype(rel_type)
         
+        # Extract evidence_refs from attributes if present
+        evidence_refs = edge_attrs.get("evidence_refs", [])
+        # Ensure it's a list (not None)
+        if evidence_refs is None:
+            evidence_refs = []
+        # Ensure all items are strings
+        evidence_refs = [str(ref) for ref in evidence_refs if ref is not None]
+        
         prepared_edges.append({
             "from_id": from_id,
             "to_id": to_id,
             "rel_type": sanitized_reltype,  # Sanitized for relationship type
-            "rel_type_prop": rel_type  # Original for type property
+            "rel_type_prop": rel_type,  # Original for type property
+            "evidence_refs": evidence_refs  # Always a list (may be empty)
         })
     
     if skipped_count > 0:
@@ -257,14 +267,20 @@ def load_edges(driver, database: str, edges: List[Dict[str, Any]], entity_lookup
         count = len(type_edges)
         
         # Create both:
-        # 1. Typed relationship (e.g., :AFFECTS) with type property
-        # 2. Generic :RELATIONSHIP with type property (for retrieval compatibility)
+        # 1. Typed relationship (e.g., :AFFECTS) with type property and evidence_refs
+        # 2. Generic :RELATIONSHIP with type property and evidence_refs (for retrieval compatibility)
         query = f"""
         UNWIND $edges AS edge
         MATCH (from:Entity {{id: edge.from_id}})
         MATCH (to:Entity {{id: edge.to_id}})
-        CREATE (from)-[r1:`{rel_type}` {{type: edge.rel_type_prop}}]->(to)
-        CREATE (from)-[r2:RELATIONSHIP {{type: edge.rel_type_prop}}]->(to)
+        CREATE (from)-[r1:`{rel_type}` {{
+            type: edge.rel_type_prop,
+            evidence_refs: edge.evidence_refs
+        }}]->(to)
+        CREATE (from)-[r2:RELATIONSHIP {{
+            type: edge.rel_type_prop,
+            evidence_refs: edge.evidence_refs
+        }}]->(to)
         """
         
         with driver.session(database=database) as session:
@@ -329,6 +345,25 @@ def verify_load(driver, database: str, expected_entities: int, expected_edges: i
         result = session.run("MATCH ()-[r]->() RETURN count(r) AS count")
         record = result.single()
         actual_edges_total = record["count"] if record else 0
+        
+        # Smoke check: Verify evidence_refs are stored for a known edge
+        # Check incident 128638 AFFECTS kubelet
+        smoke_check_query = """
+        MATCH (a:Entity {id:"128638"})-[r]->(b:Entity {id:"kubelet"})
+        WHERE r.type = "AFFECTS"
+        RETURN type(r) AS rel_type, r.type AS type_prop, r.evidence_refs AS evidence_refs
+        LIMIT 1
+        """
+        result = session.run(smoke_check_query)
+        record = result.single()
+        if record:
+            evidence_refs = record.get("evidence_refs", [])
+            if evidence_refs and len(evidence_refs) > 0:
+                print(f"  ✓ Smoke check passed: evidence_refs found for 128638->kubelet (count: {len(evidence_refs)})")
+            else:
+                print(f"  ⚠ Smoke check warning: evidence_refs missing or empty for 128638->kubelet")
+        else:
+            print(f"  ⚠ Smoke check warning: Could not find 128638->kubelet edge")
         
         # Count :RELATIONSHIP relationships specifically (what retrieval uses)
         result = session.run("MATCH ()-[r:RELATIONSHIP]->() RETURN count(r) AS count")

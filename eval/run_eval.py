@@ -165,7 +165,8 @@ def query_ask_api(base_url: str, question: str) -> Tuple[Dict[str, Any], bool]:
                     structured["facts"].append({
                         "from": str(fact.get('from', fact.get('from_id', ''))),
                         "rel": str(fact.get('rel', '')),
-                        "to": str(fact.get('to', fact.get('to_id', '')))
+                        "to": str(fact.get('to', fact.get('to_id', ''))),
+                        "evidence_refs": fact.get('evidence_refs', [])
                     })
         
         # Convert sets to lists for JSON serialization
@@ -272,6 +273,7 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         forbidden_failure_modes = item.get('forbidden_failure_modes', [])
         forbidden_components = item.get('forbidden_components', [])
         forbidden_incidents = item.get('forbidden_incidents', [])
+        require_provenance = item.get('require_provenance', False)
         
         has_forbidden_fields = (
             len(forbidden_root_causes) > 0 or
@@ -297,20 +299,42 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         # Check negative evidence if forbidden fields are present
         negative_checks_passed = True
         negative_violations = []
-        if has_forbidden_fields:
+        provenance_checks_passed = True
+        provenance_violations = []
+        
+        if has_forbidden_fields or require_provenance:
             structured_data, ask_success = query_ask_api(base_url, query)
             if ask_success:
-                negative_checks_passed, negative_violations = check_negative_evidence(
-                    structured_data,
-                    forbidden_root_causes,
-                    forbidden_failure_modes,
-                    forbidden_components,
-                    forbidden_incidents
-                )
+                if has_forbidden_fields:
+                    negative_checks_passed, negative_violations = check_negative_evidence(
+                        structured_data,
+                        forbidden_root_causes,
+                        forbidden_failure_modes,
+                        forbidden_components,
+                        forbidden_incidents
+                    )
+                
+                # Check provenance if required
+                if require_provenance:
+                    required_edge_types = ['AFFECTS', 'EXHIBITS', 'CAUSED_BY', 'TRIGGERED_BY', 'USES']
+                    facts = structured_data.get('facts', [])
+                    for fact in facts:
+                        rel_type = fact.get('rel', '')
+                        if rel_type in required_edge_types:
+                            evidence_refs = fact.get('evidence_refs', [])
+                            if not evidence_refs or len(evidence_refs) == 0:
+                                provenance_checks_passed = False
+                                provenance_violations.append(
+                                    f"Fact ({fact.get('from')}, {rel_type}, {fact.get('to')}) missing evidence_refs"
+                                )
             else:
-                # If /ask failed, we can't check negative evidence, so mark as failed
-                negative_checks_passed = False
-                negative_violations = ["Failed to query /ask endpoint for negative evidence check"]
+                # If /ask failed, we can't check, so mark as failed
+                if has_forbidden_fields:
+                    negative_checks_passed = False
+                    negative_violations = ["Failed to query /ask endpoint for negative evidence check"]
+                if require_provenance:
+                    provenance_checks_passed = False
+                    provenance_violations = ["Failed to query /ask endpoint for provenance check"]
         
         # Update counters
         if top1_correct:
@@ -319,9 +343,11 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
             hits_at_k += 1
         if not negative_checks_passed:
             negative_evidence_failures += 1
+        if not provenance_checks_passed:
+            negative_evidence_failures += 1  # Count provenance failures in same counter
         
-        # Record failure if not correct OR if negative evidence check failed
-        if not top1_correct or not hit_at_k or not negative_checks_passed:
+        # Record failure if not correct OR if negative evidence check failed OR if provenance check failed
+        if not top1_correct or not hit_at_k or not negative_checks_passed or not provenance_checks_passed:
             failure_entry = {
                 "query": query,
                 "expected_incident_ids": expected_ids,
@@ -329,7 +355,9 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                 "top1_correct": top1_correct,
                 "hit_at_k": hit_at_k,
                 "negative_checks_passed": negative_checks_passed,
-                "negative_violations": negative_violations
+                "negative_violations": negative_violations,
+                "provenance_checks_passed": provenance_checks_passed,
+                "provenance_violations": provenance_violations
             }
             failures.append(failure_entry)
     
@@ -388,6 +416,13 @@ def print_summary(n: int, accuracy_at_1: float, recall_at_k: float, failures: Li
                         print(f"    - {violation}")
             elif 'negative_checks_passed' in failure:
                 print(f"  Negative evidence check: PASSED")
+            if 'provenance_checks_passed' in failure and not failure.get('provenance_checks_passed', True):
+                print(f"  Provenance check: FAILED")
+                if 'provenance_violations' in failure:
+                    for violation in failure['provenance_violations']:
+                        print(f"    - {violation}")
+            elif 'provenance_checks_passed' in failure:
+                print(f"  Provenance check: PASSED")
     print("=" * 60)
 
 

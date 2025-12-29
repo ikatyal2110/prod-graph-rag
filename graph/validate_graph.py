@@ -8,6 +8,9 @@ Provides schema and invariant validation for the graph JSON structure.
 from typing import Dict, List, Any, Set
 from collections import defaultdict
 
+# Edge types that require provenance (evidence_refs)
+REQUIRED_PROVENANCE_EDGE_TYPES = ['AFFECTS', 'EXHIBITS', 'CAUSED_BY', 'TRIGGERED_BY', 'USES']
+
 
 def validate_schema(graph: Dict[str, Any]) -> List[str]:
     """
@@ -79,6 +82,52 @@ def validate_schema(graph: Dict[str, Any]) -> List[str]:
         
         if edge_to not in entity_ids:
             errors.append(f"Edge at index {idx} references non-existent entity: '{edge_to}'")
+    
+    # Validate sources if present
+    sources = graph.get('sources', [])
+    if sources:
+        source_ids = set()
+        for idx, source in enumerate(sources):
+            source_id = source.get('id')
+            if not source_id:
+                errors.append(f"Source at index {idx} missing 'id' field")
+                continue
+            if source_id in source_ids:
+                errors.append(f"Duplicate source ID: '{source_id}'")
+            else:
+                source_ids.add(source_id)
+        
+        # Validate evidence_refs in edges
+        # Build incident IDs set
+        incident_ids = {e.get('id') for e in entities if e.get('type') == 'incident'}
+        
+        for idx, edge in enumerate(edges):
+            edge_from = edge.get('from')
+            edge_to = edge.get('to')
+            edge_type = edge.get('type')
+            edge_attrs = edge.get('attributes', {})
+            evidence_refs = edge_attrs.get('evidence_refs', [])
+            
+            # Check if this edge type requires provenance AND edge is from an incident
+            # (edges from incidents represent factual claims about incidents)
+            if edge_type in REQUIRED_PROVENANCE_EDGE_TYPES and edge_from in incident_ids:
+                if not evidence_refs:
+                    errors.append(f"Edge ({edge_from}, {edge_type}, {edge_to}) missing required evidence_refs")
+                elif not isinstance(evidence_refs, list):
+                    errors.append(f"Edge ({edge_from}, {edge_type}, {edge_to}) evidence_refs must be a list")
+                elif len(evidence_refs) == 0:
+                    errors.append(f"Edge ({edge_from}, {edge_type}, {edge_to}) evidence_refs must be non-empty")
+                else:
+                    # Check all evidence_refs point to valid sources
+                    for ref in evidence_refs:
+                        if ref not in source_ids:
+                            errors.append(f"Edge ({edge_from}, {edge_type}, {edge_to}) references non-existent source: '{ref}'")
+            
+            # Also check that any evidence_refs that exist point to valid sources (even if not required)
+            if evidence_refs:
+                for ref in evidence_refs:
+                    if ref not in source_ids:
+                        errors.append(f"Edge ({edge_from}, {edge_type}, {edge_to}) references non-existent source: '{ref}'")
     
     return errors
 

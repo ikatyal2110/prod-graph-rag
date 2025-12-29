@@ -6,6 +6,7 @@ from collections import defaultdict
 from app.db import Neo4jClient
 from app.config import settings
 from app.models.api import ExplainResponse, FactDetail
+from app.utils.sources import resolve_sources
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -54,7 +55,8 @@ class ExplainService:
                            rel: r.type, 
                            to_id: t.id, 
                            to_type: t.type,
-                           to_props: properties(t)
+                           to_props: properties(t),
+                           evidence_refs: COALESCE(r.evidence_refs, [])
                        }) AS outs
                 """
                 
@@ -104,12 +106,18 @@ class ExplainService:
                     to_id = out.get("to_id")
                     to_type = out.get("to_type")
                     
-                    # Build fact
+                    # Build fact with evidence_refs and resolved sources
                     if include_facts:
+                        evidence_refs = out.get("evidence_refs", [])
+                        if evidence_refs is None:
+                            evidence_refs = []
+                        sources = resolve_sources(evidence_refs) if evidence_refs else []
                         facts.append(FactDetail(
                             from_id=incident_id,
                             rel=rel_type,
-                            to_id=to_id
+                            to_id=to_id,
+                            evidence_refs=evidence_refs,
+                            sources=sources
                         ))
                     
                     # Categorize based on relationship type and target type
