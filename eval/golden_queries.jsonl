@@ -1,4 +1,4 @@
-{"query":"kubelet crash concurrent map writes","expected_incident_ids":["128638"],"forbidden_root_causes":["division-by-zero"],"forbidden_failure_modes":["validation_error"],"require_provenance":true,"require_tiering":true}
+{"query":"kubelet crash concurrent map writes","expected_incident_ids":["128638"],"forbidden_root_causes":["division-by-zero"],"forbidden_failure_modes":["validation_error"],"require_provenance":true,"require_tiering":true,"require_runbook_format":true}
 {"query":"kube-scheduler panic divide by zero","expected_incident_ids":["124930"],"forbidden_root_causes":["unsynchronized-concurrent-access","validation-error"],"forbidden_failure_modes":["validation_error"],"require_provenance":true}
 {"query":"kubelet concurrent map access crash","expected_incident_ids":["128638"]}
 {"query":"scheduler divide by zero error panic","expected_incident_ids":["124930"]}

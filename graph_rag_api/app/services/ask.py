@@ -5,7 +5,8 @@ from typing import List, Tuple, Optional
 from app.db import Neo4jClient
 from app.services.retrieval import RetrievalService
 from app.services.explain import ExplainService
-from app.models.api import AskResponse, ExplainResponse, Fact, Evidence, Warning, Refusal
+from app.models.api import AskResponse, ExplainResponse, Fact, Evidence, Warning, Refusal, EvidenceBullet, Source
+from app.utils.sources import resolve_sources
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -111,29 +112,40 @@ class AskService:
         # Step 8: Build deterministic answer (or refusal) - uses only Tier-1 facts
         if refusal and refusal.is_refusal:
             answer = f"Insufficient evidence: {refusal.reason}"
+            summary = answer
+            evidence_bullets = []
         else:
-            answer = self._build_answer(filtered_cards)
+            # Generate evidence bullets from tier1_facts first (needed for artifact filtering)
+            evidence_bullets = self._build_evidence_bullets(tier1_facts_sorted)
+            # Build answer with artifact filtering based on cited USES facts
+            answer = self._build_answer(filtered_cards, tier1_facts_sorted)
+            # Generate runbook-grade summary paragraph
+            summary = self._build_runbook_summary(filtered_cards)
         
         logger.info(f"Generated answer for question: {question[:50]}...")
         
         return AskResponse(
             question=question,
-            answer=answer,
+            answer=answer,  # Backwards compatibility
+            summary=summary,
             evidence=evidence,
+            evidence_bullets=evidence_bullets,
             key_facts=key_facts,  # Backwards compatibility: equals tier1_facts
             tier1_facts=tier1_facts_sorted,
             tier2_context=tier2_facts_sorted,
+            context_concepts=tier2_facts_sorted,  # Alias for runbook display
             incident_cards=filtered_cards,
             warnings=warnings,
             refusal=refusal
         )
     
-    def _build_answer(self, incident_cards: List[ExplainResponse]) -> str:
+    def _build_answer(self, incident_cards: List[ExplainResponse], tier1_facts: List[Fact]) -> str:
         """
         Build deterministic answer from incident cards.
         
         Args:
             incident_cards: List of explain responses for incidents
+            tier1_facts: List of Tier-1 facts (for artifact filtering)
             
         Returns:
             Deterministic narrative answer
@@ -143,12 +155,12 @@ class AskService:
         
         if len(incident_cards) == 1:
             # Single incident: use dedicated formatter
-            return self._format_single_incident_answer(incident_cards[0])
+            return self._format_single_incident_answer(incident_cards[0], tier1_facts)
         else:
             # Multiple incidents: produce ranked list
             return self._format_multiple_incidents_answer(incident_cards)
     
-    def _format_single_incident_answer(self, inc: ExplainResponse) -> str:
+    def _format_single_incident_answer(self, inc: ExplainResponse, tier1_facts: List[Fact]) -> str:
         """
         Format answer for a single incident using deterministic template.
         
@@ -157,11 +169,12 @@ class AskService:
         - Second sentence: "Component: <COMPONENT>. Failure mode: <FAILURE_MODE>."
         - Third sentence (if present): "Root cause: <ROOT_CAUSE>."
         - Fourth sentence (if present): "Trigger: <TRIGGER>."
-        - Artifacts line (if present): "Artifacts: <ARTIFACT_1>, <ARTIFACT_2>, ... ."
+        - Artifacts line (only if backed by cited USES facts): "Artifacts: <ARTIFACT_1>, <ARTIFACT_2>, ... ."
         - Final sentence: "Evidence is grounded in graph relationships and linked nodes."
         
         Args:
             inc: Explain response for the incident
+            tier1_facts: List of Tier-1 facts (for artifact filtering)
             
         Returns:
             Formatted answer string
@@ -201,9 +214,10 @@ class AskService:
             trigger_str = ", ".join(triggers)
             sentences.append(f"Trigger: {trigger_str}.")
         
-        # Artifacts line (only if present)
-        if inc.artifacts:
-            artifacts = sorted(inc.artifacts)  # Sort for determinism
+        # Artifacts line (only if backed by cited USES facts)
+        cited_artifacts = self._get_cited_artifacts(inc.incident_id, tier1_facts)
+        if cited_artifacts:
+            artifacts = sorted(cited_artifacts)
             artifact_str = ", ".join(artifacts)
             sentences.append(f"Artifacts: {artifact_str}.")
         
@@ -482,3 +496,176 @@ class AskService:
             return (fact.to_id, fact.from_id)
         
         return sorted(facts, key=sort_key)
+    
+    def _build_runbook_summary(self, incident_cards: List[ExplainResponse]) -> str:
+        """
+        Build runbook-grade summary paragraph from incident cards.
+        
+        Format: Exactly 1 professionally formatted sentence with deterministic ordering:
+        - Incident ID
+        - Component(s)
+        - Failure mode(s)
+        - Root cause(s)
+        - Trigger(s) if present
+        
+        Example: "Incident 128638 affected kubelet, exhibited crash, and was caused by unsynchronized-concurrent-access."
+        
+        No Tier-2 concepts, no artifacts.
+        
+        Args:
+            incident_cards: List of explain responses for incidents
+            
+        Returns:
+            Single professionally formatted sentence
+        """
+        if not incident_cards:
+            return "No matching incidents found for this question."
+        
+        if len(incident_cards) == 1:
+            # Single incident: build focused summary
+            inc = incident_cards[0]
+            parts = []
+            
+            # Incident ID
+            parts.append(f"Incident {inc.incident_id}")
+            
+            # Component(s)
+            if inc.affects:
+                components = sorted(inc.affects)
+                if len(components) == 1:
+                    parts.append(f"affected {components[0]}")
+                else:
+                    comp_str = ", ".join(components[:-1]) + f", and {components[-1]}"
+                    parts.append(f"affected {comp_str}")
+            
+            # Failure mode(s)
+            if inc.failure_modes:
+                failure_modes = sorted(inc.failure_modes)
+                if len(failure_modes) == 1:
+                    parts.append(f"exhibited {failure_modes[0]}")
+                else:
+                    fm_str = ", ".join(failure_modes[:-1]) + f", and {failure_modes[-1]}"
+                    parts.append(f"exhibited {fm_str}")
+            
+            # Root cause(s)
+            if inc.root_causes:
+                root_causes = sorted(inc.root_causes)
+                if len(root_causes) == 1:
+                    parts.append(f"was caused by {root_causes[0]}")
+                else:
+                    rc_str = ", ".join(root_causes[:-1]) + f", and {root_causes[-1]}"
+                    parts.append(f"was caused by {rc_str}")
+            
+            # Trigger(s) if present
+            if inc.triggers:
+                triggers = sorted(inc.triggers)
+                if len(triggers) == 1:
+                    parts.append(f"was triggered by {triggers[0]}")
+                else:
+                    trigger_str = ", ".join(triggers[:-1]) + f", and {triggers[-1]}"
+                    parts.append(f"was triggered by {trigger_str}")
+            
+            # Join into single professionally formatted sentence
+            summary = ", ".join(parts) + "."
+            # Capitalize first letter
+            if summary:
+                summary = summary[0].upper() + summary[1:]
+            return summary
+        else:
+            # Multiple incidents: summarize top incident
+            inc = incident_cards[0]
+            parts = [f"Top incident {inc.incident_id}"]
+            
+            if inc.affects:
+                components = sorted(inc.affects)
+                comp_str = ", ".join(components[:2])  # Limit to 2 for brevity
+                parts.append(f"affected {comp_str}")
+            
+            if inc.failure_modes:
+                failure_modes = sorted(inc.failure_modes)
+                parts.append(f"exhibited {failure_modes[0]}")
+            
+            if inc.root_causes:
+                root_causes = sorted(inc.root_causes)
+                parts.append(f"was caused by {root_causes[0]}")
+            
+            summary = ", ".join(parts) + "."
+            # Capitalize first letter
+            if summary:
+                summary = summary[0].upper() + summary[1:]
+            return summary
+    
+    def _get_cited_artifacts(self, incident_id: str, tier1_facts: List[Fact]) -> List[str]:
+        """
+        Get artifacts that are backed by cited USES facts.
+        
+        Args:
+            incident_id: Incident ID
+            tier1_facts: List of Tier-1 facts
+            
+        Returns:
+            List of artifact IDs that have cited USES relationships
+        """
+        cited_artifacts = []
+        for fact in tier1_facts:
+            # Only include USES facts from this incident with evidence_refs
+            if (fact.from_id == incident_id and 
+                fact.rel == "USES" and 
+                fact.evidence_refs and 
+                len(fact.evidence_refs) > 0):
+                cited_artifacts.append(fact.to_id)
+        return cited_artifacts
+    
+    def _build_evidence_bullets(self, tier1_facts: List[Fact]) -> List[EvidenceBullet]:
+        """
+        Build evidence bullets from tier1_facts.
+        
+        Each bullet corresponds to ONE tier1_fact, formatted as:
+        - "Incident 128638 AFFECTS component kubelet"
+        - "Incident 128638 EXHIBITS failure mode crash"
+        - "Incident 128638 CAUSED_BY unsynchronized-concurrent-access"
+        
+        Args:
+            tier1_facts: List of Tier-1 facts (already sorted)
+            
+        Returns:
+            List of EvidenceBullet objects
+        """
+        bullets = []
+        
+        # Map relationship types to display labels
+        rel_labels = {
+            'AFFECTS': 'component',
+            'EXHIBITS': 'failure mode',
+            'CAUSED_BY': '',
+            'TRIGGERED_BY': 'trigger',
+            'USES': 'artifact'
+        }
+        
+        for fact in tier1_facts:
+            # Build bullet text
+            incident_id = fact.from_id
+            rel_type = fact.rel
+            target_id = fact.to_id
+            
+            # Get label for relationship type
+            label = rel_labels.get(rel_type, '')
+            
+            # Format bullet text
+            if label:
+                bullet_text = f"Incident {incident_id} {rel_type} {label} {target_id}"
+            else:
+                bullet_text = f"Incident {incident_id} {rel_type} {target_id}"
+            
+            # Resolve sources
+            evidence_refs = fact.evidence_refs if fact.evidence_refs else []
+            sources_dict = resolve_sources(evidence_refs)
+            sources = [Source(**s) for s in sources_dict]
+            
+            bullets.append(EvidenceBullet(
+                text=bullet_text,
+                evidence_refs=evidence_refs,
+                sources=sources
+            ))
+        
+        return bullets

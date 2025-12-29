@@ -183,6 +183,14 @@ def query_ask_api(base_url: str, question: str) -> Tuple[Dict[str, Any], bool]:
         if 'tier2_context' in data and isinstance(data['tier2_context'], list):
             structured["tier2_context"] = data['tier2_context']
         
+        # Extract runbook format fields
+        if 'summary' in data:
+            structured["summary"] = data['summary']
+        if 'evidence_bullets' in data and isinstance(data['evidence_bullets'], list):
+            structured["evidence_bullets"] = data['evidence_bullets']
+        if 'context_concepts' in data and isinstance(data['context_concepts'], list):
+            structured["context_concepts"] = data['context_concepts']
+        
         # Extract answer text for tiering check
         if 'answer' in data:
             structured["answer_text"] = data['answer']
@@ -293,6 +301,7 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         forbidden_incidents = item.get('forbidden_incidents', [])
         require_provenance = item.get('require_provenance', False)
         require_tiering = item.get('require_tiering', False)
+        require_runbook_format = item.get('require_runbook_format', False)
         
         has_forbidden_fields = (
             len(forbidden_root_causes) > 0 or
@@ -322,8 +331,10 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         provenance_violations = []
         tiering_checks_passed = True
         tiering_violations = []
+        runbook_format_checks_passed = True
+        runbook_format_violations = []
         
-        if has_forbidden_fields or require_provenance or require_tiering:
+        if has_forbidden_fields or require_provenance or require_tiering or require_runbook_format:
             structured_data, ask_success = query_ask_api(base_url, query)
             if ask_success:
                 if has_forbidden_fields:
@@ -419,6 +430,35 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                                 tiering_violations.append(
                                     f"Answer contains Tier-2 concept ID '{concept_id}' (should only appear in tier2_context)"
                                 )
+                
+                # Check runbook format if required
+                if require_runbook_format:
+                    # Check that summary exists and doesn't contain Tier-2 concept IDs
+                    summary_text = structured_data.get('summary', '')
+                    if not summary_text:
+                        runbook_format_checks_passed = False
+                        runbook_format_violations.append("Summary field is missing")
+                    else:
+                        # Extract Tier-2 concept IDs from tier2_context
+                        tier2_context = structured_data.get('tier2_context', [])
+                        tier2_concept_ids = {fact.get('to') for fact in tier2_context if fact.get('rel') == 'INVOLVES'}
+                        
+                        # Check if any Tier-2 concept ID appears in summary
+                        for concept_id in tier2_concept_ids:
+                            if concept_id and concept_id.lower() in summary_text.lower():
+                                runbook_format_checks_passed = False
+                                runbook_format_violations.append(
+                                    f"Summary contains Tier-2 concept ID '{concept_id}' (should only appear in context_concepts)"
+                                )
+                    
+                    # Check that evidence_bullets count equals len(tier1_facts)
+                    evidence_bullets = structured_data.get('evidence_bullets', [])
+                    tier1_facts = structured_data.get('tier1_facts', [])
+                    if len(evidence_bullets) != len(tier1_facts):
+                        runbook_format_checks_passed = False
+                        runbook_format_violations.append(
+                            f"evidence_bullets count ({len(evidence_bullets)}) does not equal tier1_facts count ({len(tier1_facts)})"
+                        )
             else:
                 # If /ask failed, we can't check, so mark as failed
                 if has_forbidden_fields:
@@ -430,6 +470,9 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                 if require_tiering:
                     tiering_checks_passed = False
                     tiering_violations = ["Failed to query /ask endpoint for tiering check"]
+                if require_runbook_format:
+                    runbook_format_checks_passed = False
+                    runbook_format_violations = ["Failed to query /ask endpoint for runbook format check"]
         
         # Update counters
         if top1_correct:
@@ -442,9 +485,11 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
             negative_evidence_failures += 1  # Count provenance failures in same counter
         if not tiering_checks_passed:
             negative_evidence_failures += 1  # Count tiering failures in same counter
+        if not runbook_format_checks_passed:
+            negative_evidence_failures += 1  # Count runbook format failures in same counter
         
-        # Record failure if not correct OR if negative evidence check failed OR if provenance check failed OR if tiering check failed
-        if not top1_correct or not hit_at_k or not negative_checks_passed or not provenance_checks_passed or not tiering_checks_passed:
+        # Record failure if not correct OR if negative evidence check failed OR if provenance check failed OR if tiering check failed OR if runbook format check failed
+        if not top1_correct or not hit_at_k or not negative_checks_passed or not provenance_checks_passed or not tiering_checks_passed or not runbook_format_checks_passed:
             failure_entry = {
                 "query": query,
                 "expected_incident_ids": expected_ids,
@@ -456,7 +501,9 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                 "provenance_checks_passed": provenance_checks_passed,
                 "provenance_violations": provenance_violations,
                 "tiering_checks_passed": tiering_checks_passed,
-                "tiering_violations": tiering_violations
+                "tiering_violations": tiering_violations,
+                "runbook_format_checks_passed": runbook_format_checks_passed,
+                "runbook_format_violations": runbook_format_violations
             }
             failures.append(failure_entry)
     
@@ -529,6 +576,13 @@ def print_summary(n: int, accuracy_at_1: float, recall_at_k: float, failures: Li
                         print(f"    - {violation}")
             elif 'tiering_checks_passed' in failure:
                 print(f"  Tiering check: PASSED")
+            if 'runbook_format_checks_passed' in failure and not failure.get('runbook_format_checks_passed', True):
+                print(f"  Runbook format check: FAILED")
+                if 'runbook_format_violations' in failure:
+                    for violation in failure['runbook_format_violations']:
+                        print(f"    - {violation}")
+            elif 'runbook_format_checks_passed' in failure:
+                print(f"  Runbook format check: PASSED")
     print("=" * 60)
 
 

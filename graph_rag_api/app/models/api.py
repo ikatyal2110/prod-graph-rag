@@ -133,14 +133,24 @@ class Refusal(BaseModel):
     reason: str = Field(..., description="Reason for refusal")
 
 
+class EvidenceBullet(BaseModel):
+    """Evidence bullet point for runbook format"""
+    text: str = Field(..., description="Formatted evidence bullet text")
+    evidence_refs: List[str] = Field(default=[], description="Evidence references")
+    sources: List[Source] = Field(default=[], description="Resolved source objects")
+
+
 class AskResponse(BaseModel):
     """Ask question response model"""
     question: str = Field(..., description="Original question")
-    answer: str = Field(..., description="Deterministic narrative answer (Tier-1 facts only)")
+    answer: str = Field(..., description="Deterministic narrative answer (Tier-1 facts only, for backwards compatibility)")
+    summary: str = Field(..., description="Runbook-grade summary paragraph (Tier-1 facts only)")
     evidence: Evidence = Field(..., description="Evidence collected from graph")
+    evidence_bullets: List[EvidenceBullet] = Field(default=[], description="Evidence bullets (one per tier1_fact)")
     key_facts: List[Fact] = Field(default=[], description="Key facts (Tier-1 only, for backwards compatibility)")
     tier1_facts: List[Fact] = Field(default=[], description="Tier-1 facts (hard evidence: AFFECTS, EXHIBITS, CAUSED_BY, TRIGGERED_BY, USES)")
     tier2_context: List[Fact] = Field(default=[], description="Tier-2 context facts (INVOLVES concepts)")
+    context_concepts: List[Fact] = Field(default=[], description="Context concepts (alias for tier2_context, for runbook display)")
     incident_cards: List[ExplainResponse] = Field(default=[], description="Incident cards (explain responses without facts)")
     warnings: List[Warning] = Field(default=[], description="Warnings about missing citations or other issues")
     refusal: Optional[Refusal] = Field(default=None, description="Refusal response if insufficient evidence")
