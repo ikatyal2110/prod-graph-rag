@@ -69,17 +69,20 @@ SYNONYM_MAPPINGS = {
     ],
     
     # Failure modes
+    # Note: panic only matches explicit panic terms, not generic crash terms
     "panic": [
         "panic",
-        "crashes",
-        "crash",
-        "crashed",
     ],
     "crash": [
         "crash",
         "crashes",
         "crashed",
+        "crashing",
+        "crashloop",
+        "crash loop",
         "fatal error",
+        "segfault",
+        "segmentation fault",
     ],
     "oom": [
         "oom",
@@ -89,6 +92,7 @@ SYNONYM_MAPPINGS = {
     ],
     "degradation": [
         "degradation",
+        "degraded",
         "performance degradation",
     ],
     
@@ -277,6 +281,42 @@ def extract_canonical_tokens(text: str) -> Set[str]:
             elif len(variant_lower) > 15 and variant_lower in text_lower:
                 found_canonical.add(canonical_id)
                 break
+    
+    # Explicit pattern matching for failure modes (more precise than synonym matching)
+    # This ensures we only match when explicit terms are present
+    failure_mode_patterns = {
+        'panic': [
+            r'\bpanic\b',           # "panic" as word
+            r'\bpanic:',             # "panic:" (common in logs)
+            r'\bpanic\s*\(',         # "panic(" (function call)
+        ],
+        'crash': [
+            r'\bcrash(es|ed|ing)?\b',  # "crash", "crashes", "crashed", "crashing"
+            r'\bcrashloop\b',          # "crashloop"
+            r'\bcrash\s+loop\b',      # "crash loop"
+            r'\bfatal\s+error\b',     # "fatal error"
+            r'\bsegfault\b',          # "segfault"
+            r'\bsegmentation\s+fault\b',  # "segmentation fault"
+        ],
+        'oom': [
+            r'\boom\b',               # "oom"
+            r'\bout\s+of\s+memory\b', # "out of memory"
+            r'\boomkilled\b',         # "oomkilled"
+            r'\boom\s+killed\b',      # "oom killed"
+        ],
+        'degradation': [
+            r'\bdegradation\b',       # "degradation"
+            r'\bdegraded\b',          # "degraded"
+            r'\bperformance\s+degradation\b',  # "performance degradation"
+        ],
+    }
+    
+    # Check explicit patterns for failure modes
+    for failure_mode, patterns in failure_mode_patterns.items():
+        for pattern in patterns:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                found_canonical.add(failure_mode)
+                break  # Found one pattern, no need to check others
     
     # Special handling for validation-error and validation-gaps disambiguation
     has_creation_order_cues = any(cue in text_lower for cue in [
