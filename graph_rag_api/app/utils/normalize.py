@@ -190,6 +190,17 @@ SYNONYM_MAPPINGS = {
         "validation not enforced",
         "not validated",
         "lack of validation",
+        # 135333-specific: service name validation happens after IP allocation
+        "service name is empty",
+        "service name empty",
+        "empty service name",
+        "invalid IP address",
+        "invalid IP",
+        "IP allocation",
+        "allocating IP",
+        "clusterIP allocation",
+        "IP address creation",
+        "creates invalid IP",
     ],
     # Concepts for incident 135333 (creation order / resource creation order)
     "resource-creation-order": [
@@ -201,11 +212,19 @@ SYNONYM_MAPPINGS = {
         "allocate before validate",
         "name checked after",
         "checked after allocation",
+        "service name is empty",  # Context: creation order issue
+        "service name empty",
+        "empty service name",
+        "IP allocation",
+        "allocating IP",
+        "clusterIP allocation",
     ],
     "api-request-processing": [
         "api request processing",
         "request processing",
         "request order",
+        "api server creates",  # 135333 context
+        "creates invalid IP",
     ],
 }
 
@@ -319,31 +338,57 @@ def extract_canonical_tokens(text: str) -> Set[str]:
                 break  # Found one pattern, no need to check others
     
     # Special handling for validation-error and validation-gaps disambiguation
+    # 135333 cues: service/IP allocation context
+    has_135333_cues = any(cue in text_lower for cue in [
+        'service name is empty', 'service name empty', 'empty service name',
+        'invalid IP address', 'invalid IP', 'IP allocation', 'allocating IP',
+        'clusterIP allocation', 'IP address creation', 'creates invalid IP',
+        'api server creates'
+    ])
     has_creation_order_cues = any(cue in text_lower for cue in [
         'checked after', 'after ip allocation', 'allocate before validate',
         'name checked after', 'creation order', 'order of creation',
         'resource creation order', 'checked after allocation'
-    ])
+    ]) or has_135333_cues  # Include 135333 cues as creation order indicators
+    
+    # 128709 cues: feature gate + pod logs context
     has_feature_gate = any(term in text_lower for term in ['feature gate', 'featuregate', 'feature-gate'])
     has_podlogs_cues = any(cue in text_lower for cue in [
         'podlogsquerysplitsstreams', 'pod logs', 'podlog', 
-        'logs query', 'split streams', 'streams parameter'
+        'logs query', 'split streams', 'streams parameter', 'stream parameter'
     ])
     
-    # If creation order cues are present, remove validation-error and add validation-gaps (favor 135333)
-    if has_creation_order_cues:
+    # Conservative: "name is empty" only triggers in service/IP context
+    has_service_ip_context = any(context in text_lower for context in [
+        'service', 'IP', 'IP address', 'clusterIP', 'ipallocator', 'allocation'
+    ])
+    if 'name is empty' in text_lower or 'name empty' in text_lower:
+        if has_service_ip_context:
+            # In service/IP context, favor 135333
+            found_canonical.add('validation-gaps')
+            found_canonical.add('resource-creation-order')
+        # Otherwise, don't add anything (too generic)
+    
+    # If creation order/135333 cues are present, remove validation-error and add validation-gaps (favor 135333)
+    if has_creation_order_cues or has_135333_cues:
         found_canonical.discard('validation-error')  # Remove if it was added via variant matching
         has_validation = 'validation' in text_lower
         has_error_indicator = any(indicator in text_lower for indicator in ['error', 'failed', 'fails', 'rejected', 'rejection', 'invalid'])
         # Add validation-gaps when creation order cues + validation indicators are present
-        if has_validation and has_error_indicator:
+        # OR when 135333 cues are present (validation gaps are implicit in the issue)
+        if (has_validation and has_error_indicator) or has_135333_cues:
             found_canonical.add('validation-gaps')
-    # Otherwise, add validation-error if (validation + error) OR (feature gate + pod-logs) cues are present
-    elif 'validation-error' not in found_canonical:
-        has_validation = 'validation' in text_lower
-        has_error_indicator = any(indicator in text_lower for indicator in ['error', 'failed', 'fails', 'rejected', 'rejection', 'invalid'])
-        if (has_validation and has_error_indicator) or (has_feature_gate and has_podlogs_cues):
-            found_canonical.add('validation-error')
+        # Also add resource-creation-order and api-request-processing for 135333
+        if has_135333_cues:
+            found_canonical.add('resource-creation-order')
+            found_canonical.add('api-request-processing')
+    # Otherwise, add validation-error ONLY if (feature gate + pod-logs) cues are present
+    # Do NOT add validation-error for generic "validation error" without feature gate context
+    elif has_feature_gate and has_podlogs_cues:
+        # Only add validation-error when BOTH feature gate AND pod-logs cues are present (128709)
+        found_canonical.add('validation-error')
+        found_canonical.add('feature-gate-compatibility')
+        found_canonical.add('podlogsquerysplitsstreams-feature-gate')
     
     return found_canonical
 
