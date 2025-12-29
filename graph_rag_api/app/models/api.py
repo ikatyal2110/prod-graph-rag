@@ -136,9 +136,11 @@ class Refusal(BaseModel):
 class AskResponse(BaseModel):
     """Ask question response model"""
     question: str = Field(..., description="Original question")
-    answer: str = Field(..., description="Deterministic narrative answer")
+    answer: str = Field(..., description="Deterministic narrative answer (Tier-1 facts only)")
     evidence: Evidence = Field(..., description="Evidence collected from graph")
-    key_facts: List[Fact] = Field(default=[], description="Key facts (prioritized relationships)")
+    key_facts: List[Fact] = Field(default=[], description="Key facts (Tier-1 only, for backwards compatibility)")
+    tier1_facts: List[Fact] = Field(default=[], description="Tier-1 facts (hard evidence: AFFECTS, EXHIBITS, CAUSED_BY, TRIGGERED_BY, USES)")
+    tier2_context: List[Fact] = Field(default=[], description="Tier-2 context facts (INVOLVES concepts)")
     incident_cards: List[ExplainResponse] = Field(default=[], description="Incident cards (explain responses without facts)")
     warnings: List[Warning] = Field(default=[], description="Warnings about missing citations or other issues")
     refusal: Optional[Refusal] = Field(default=None, description="Refusal response if insufficient evidence")

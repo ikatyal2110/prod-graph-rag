@@ -13,6 +13,10 @@ logger = get_logger(__name__)
 # Relationship types that require citations (evidence_refs)
 REQUIRED_CITED_RELS = {"AFFECTS", "EXHIBITS", "CAUSED_BY", "TRIGGERED_BY", "USES"}
 
+# Fact tiering: Tier-1 (hard evidence) vs Tier-2 (context)
+TIER1_RELS = {"AFFECTS", "EXHIBITS", "CAUSED_BY", "TRIGGERED_BY", "USES"}
+TIER2_RELS = {"INVOLVES"}
+
 
 class AskService:
     """Service for asking questions and generating deterministic answers"""
@@ -85,16 +89,26 @@ class AskService:
         # Check all facts with required relationship types for citations
         filtered_facts, warnings = self._filter_uncited_facts(facts)
         
-        # Step 4: Select and sort key facts deterministically (only cited facts)
-        key_facts = self._sort_key_facts(filtered_facts)[:max_facts]
+        # Step 4: Separate facts into Tier-1 (hard evidence) and Tier-2 (context)
+        tier1_facts, tier2_facts = self._separate_fact_tiers(filtered_facts)
         
-        logger.info(f"Selected {len(key_facts)} key facts from {len(filtered_facts)} cited facts (filtered from {len(facts)} total)")
+        # Step 5: Select and sort Tier-1 facts deterministically (only cited facts)
+        tier1_facts_sorted = self._sort_tier1_facts(tier1_facts)[:max_facts]
         
-        # Step 5: Check if incident cards have required fields (component, failure_mode, root_cause)
+        # Step 6: Sort Tier-2 facts deterministically (lexicographically by 'to')
+        tier2_facts_sorted = self._sort_tier2_facts(tier2_facts)
+        
+        # Keep key_facts for backwards compatibility (equals tier1_facts)
+        key_facts = tier1_facts_sorted
+        
+        logger.info(f"Selected {len(tier1_facts_sorted)} Tier-1 facts and {len(tier2_facts_sorted)} Tier-2 context facts from {len(filtered_facts)} cited facts (filtered from {len(facts)} total)")
+        
+        # Step 7: Check if incident cards have required fields (component, failure_mode, root_cause)
         # Filter incident cards to only include those with cited required facts
-        filtered_cards, refusal = self._filter_incident_cards(incident_cards, filtered_facts)
+        # Note: incident cards already only contain Tier-1 fields (affects, failure_modes, root_causes, triggers, artifacts)
+        filtered_cards, refusal = self._filter_incident_cards(incident_cards, tier1_facts)
         
-        # Step 6: Build deterministic answer (or refusal)
+        # Step 8: Build deterministic answer (or refusal) - uses only Tier-1 facts
         if refusal and refusal.is_refusal:
             answer = f"Insufficient evidence: {refusal.reason}"
         else:
@@ -106,7 +120,9 @@ class AskService:
             question=question,
             answer=answer,
             evidence=evidence,
-            key_facts=key_facts,
+            key_facts=key_facts,  # Backwards compatibility: equals tier1_facts
+            tier1_facts=tier1_facts_sorted,
+            tier2_context=tier2_facts_sorted,
             incident_cards=filtered_cards,
             warnings=warnings,
             refusal=refusal
@@ -401,3 +417,68 @@ class AskService:
             return [], refusal
         
         return filtered_cards, None
+    
+    def _separate_fact_tiers(self, facts: List[Fact]) -> Tuple[List[Fact], List[Fact]]:
+        """
+        Separate facts into Tier-1 (hard evidence) and Tier-2 (context).
+        
+        Args:
+            facts: List of facts to separate
+            
+        Returns:
+            Tuple of (tier1_facts, tier2_facts)
+        """
+        tier1_facts = []
+        tier2_facts = []
+        
+        for fact in facts:
+            if fact.rel in TIER1_RELS:
+                tier1_facts.append(fact)
+            elif fact.rel in TIER2_RELS:
+                tier2_facts.append(fact)
+            else:
+                # Unknown relationship type - treat as Tier-1 for safety
+                tier1_facts.append(fact)
+        
+        return tier1_facts, tier2_facts
+    
+    def _sort_tier1_facts(self, facts: List[Fact]) -> List[Fact]:
+        """
+        Sort Tier-1 facts by canonical relationship order.
+        
+        Order: AFFECTS → EXHIBITS → CAUSED_BY → TRIGGERED_BY → USES
+        
+        Args:
+            facts: List of Tier-1 facts to sort
+            
+        Returns:
+            Sorted list of facts
+        """
+        tier1_order = {
+            'AFFECTS': 1,
+            'EXHIBITS': 2,
+            'CAUSED_BY': 3,
+            'TRIGGERED_BY': 4,
+            'USES': 5
+        }
+        
+        def sort_key(fact: Fact) -> tuple:
+            rel_rank = tier1_order.get(fact.rel, 999)
+            return (rel_rank, fact.to_id, fact.from_id)
+        
+        return sorted(facts, key=sort_key)
+    
+    def _sort_tier2_facts(self, facts: List[Fact]) -> List[Fact]:
+        """
+        Sort Tier-2 facts lexicographically by 'to' (concept id) for stability.
+        
+        Args:
+            facts: List of Tier-2 facts to sort
+            
+        Returns:
+            Sorted list of facts
+        """
+        def sort_key(fact: Fact) -> tuple:
+            return (fact.to_id, fact.from_id)
+        
+        return sorted(facts, key=sort_key)

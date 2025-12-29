@@ -177,11 +177,15 @@ def query_ask_api(base_url: str, question: str) -> Tuple[Dict[str, Any], bool]:
                         "evidence_refs": fact.get('evidence_refs', [])
                     })
         
-        # Extract warnings and refusal
-        if 'warnings' in data and isinstance(data['warnings'], list):
-            structured["warnings"] = data['warnings']
-        if 'refusal' in data:
-            structured["refusal"] = data['refusal']
+        # Extract tier1_facts and tier2_context
+        if 'tier1_facts' in data and isinstance(data['tier1_facts'], list):
+            structured["tier1_facts"] = data['tier1_facts']
+        if 'tier2_context' in data and isinstance(data['tier2_context'], list):
+            structured["tier2_context"] = data['tier2_context']
+        
+        # Extract answer text for tiering check
+        if 'answer' in data:
+            structured["answer_text"] = data['answer']
         
         # Convert sets to lists for JSON serialization
         structured["components"] = list(structured["components"])
@@ -288,6 +292,7 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         forbidden_components = item.get('forbidden_components', [])
         forbidden_incidents = item.get('forbidden_incidents', [])
         require_provenance = item.get('require_provenance', False)
+        require_tiering = item.get('require_tiering', False)
         
         has_forbidden_fields = (
             len(forbidden_root_causes) > 0 or
@@ -315,8 +320,10 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         negative_violations = []
         provenance_checks_passed = True
         provenance_violations = []
+        tiering_checks_passed = True
+        tiering_violations = []
         
-        if has_forbidden_fields or require_provenance:
+        if has_forbidden_fields or require_provenance or require_tiering:
             structured_data, ask_success = query_ask_api(base_url, query)
             if ask_success:
                 if has_forbidden_fields:
@@ -363,6 +370,55 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                         provenance_violations.append(
                             f"Refusal response: {refusal.get('reason', 'Insufficient evidence')}"
                         )
+                
+                # Check tiering if required
+                if require_tiering:
+                    # Check that tier1_facts excludes INVOLVES
+                    tier1_facts = structured_data.get('tier1_facts', [])
+                    tier2_context = structured_data.get('tier2_context', [])
+                    
+                    # Check key_facts (should equal tier1_facts, no INVOLVES)
+                    key_facts = structured_data.get('facts', [])  # This is from key_facts field
+                    for fact in key_facts:
+                        if fact.get('rel') == 'INVOLVES':
+                            tiering_checks_passed = False
+                            tiering_violations.append(
+                                f"key_facts contains Tier-2 fact: ({fact.get('from')}, INVOLVES, {fact.get('to')})"
+                            )
+                    
+                    # Check tier1_facts for INVOLVES
+                    for fact in tier1_facts:
+                        if fact.get('rel') == 'INVOLVES':
+                            tiering_checks_passed = False
+                            tiering_violations.append(
+                                f"tier1_facts contains Tier-2 fact: ({fact.get('from')}, INVOLVES, {fact.get('to')})"
+                            )
+                    
+                    # Check tier2_context only contains INVOLVES
+                    for fact in tier2_context:
+                        if fact.get('rel') != 'INVOLVES':
+                            tiering_checks_passed = False
+                            tiering_violations.append(
+                                f"tier2_context contains non-INVOLVES fact: ({fact.get('from')}, {fact.get('rel')}, {fact.get('to')})"
+                            )
+                    
+                    # Check that answer string doesn't contain Tier-2 concept IDs
+                    answer_text = structured_data.get('answer_text', '')
+                    if answer_text:
+                        # Extract Tier-2 concept IDs from tier2_context
+                        tier2_concept_ids = {fact.get('to') for fact in tier2_context if fact.get('rel') == 'INVOLVES'}
+                        
+                        # Check if any Tier-2 concept ID appears in answer (excluding the phrase "Context concepts:")
+                        answer_lower = answer_text.lower()
+                        # Remove "Context concepts:" line if present for checking
+                        answer_for_check = answer_lower.split('context concepts:')[0] if 'context concepts:' in answer_lower else answer_lower
+                        
+                        for concept_id in tier2_concept_ids:
+                            if concept_id and concept_id.lower() in answer_for_check:
+                                tiering_checks_passed = False
+                                tiering_violations.append(
+                                    f"Answer contains Tier-2 concept ID '{concept_id}' (should only appear in tier2_context)"
+                                )
             else:
                 # If /ask failed, we can't check, so mark as failed
                 if has_forbidden_fields:
@@ -371,6 +427,9 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                 if require_provenance:
                     provenance_checks_passed = False
                     provenance_violations = ["Failed to query /ask endpoint for provenance check"]
+                if require_tiering:
+                    tiering_checks_passed = False
+                    tiering_violations = ["Failed to query /ask endpoint for tiering check"]
         
         # Update counters
         if top1_correct:
@@ -381,9 +440,11 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
             negative_evidence_failures += 1
         if not provenance_checks_passed:
             negative_evidence_failures += 1  # Count provenance failures in same counter
+        if not tiering_checks_passed:
+            negative_evidence_failures += 1  # Count tiering failures in same counter
         
-        # Record failure if not correct OR if negative evidence check failed OR if provenance check failed
-        if not top1_correct or not hit_at_k or not negative_checks_passed or not provenance_checks_passed:
+        # Record failure if not correct OR if negative evidence check failed OR if provenance check failed OR if tiering check failed
+        if not top1_correct or not hit_at_k or not negative_checks_passed or not provenance_checks_passed or not tiering_checks_passed:
             failure_entry = {
                 "query": query,
                 "expected_incident_ids": expected_ids,
@@ -393,7 +454,9 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                 "negative_checks_passed": negative_checks_passed,
                 "negative_violations": negative_violations,
                 "provenance_checks_passed": provenance_checks_passed,
-                "provenance_violations": provenance_violations
+                "provenance_violations": provenance_violations,
+                "tiering_checks_passed": tiering_checks_passed,
+                "tiering_violations": tiering_violations
             }
             failures.append(failure_entry)
     
@@ -459,6 +522,13 @@ def print_summary(n: int, accuracy_at_1: float, recall_at_k: float, failures: Li
                         print(f"    - {violation}")
             elif 'provenance_checks_passed' in failure:
                 print(f"  Provenance check: PASSED")
+            if 'tiering_checks_passed' in failure and not failure.get('tiering_checks_passed', True):
+                print(f"  Tiering check: FAILED")
+                if 'tiering_violations' in failure:
+                    for violation in failure['tiering_violations']:
+                        print(f"    - {violation}")
+            elif 'tiering_checks_passed' in failure:
+                print(f"  Tiering check: PASSED")
     print("=" * 60)
 
 
