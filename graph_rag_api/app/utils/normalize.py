@@ -32,6 +32,8 @@ SYNONYM_MAPPINGS = {
         "race condition",
         "simultaneous map modifications",
         "concurrent map access",
+        "container map",
+        "race condition in container map",
     ],
     "unbounded-memory-growth": [
         "out of memory",

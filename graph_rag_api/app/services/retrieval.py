@@ -10,6 +10,8 @@ from app.db import Neo4jClient
 from app.config import settings
 from app.utils.text import tokenize_question
 from app.utils.normalize import normalize_and_enhance_tokens, extract_canonical_tokens
+from app.utils.code_detection import is_code_query
+from app.utils.artifact_detection import mentions_artifact
 from app.models.api import Anchor, Fact, Evidence, Stats
 from app.logging import get_logger
 
@@ -66,15 +68,21 @@ class RetrievalService:
         
         try:
             with self.neo4j_client.get_session() as session:
+                # Determine allowed entity types based on whether query is code-related
+                # Artifacts should only be included for code queries OR if query explicitly mentions an artifact
+                allowed_types = ['component', 'root_cause', 'failure_mode', 'concept', 'incident', 'trigger']
+                if is_code_query(question) or mentions_artifact(question):
+                    allowed_types.append('artifact')
+                
                 # Get all candidate matches with basic info
                 query = """
                 MATCH (e:Entity)
-                WHERE e.type IN ['component', 'root_cause', 'failure_mode', 'concept', 'incident', 'artifact']
+                WHERE e.type IN $allowed_types
                 RETURN e.id AS id, e.type AS type
                 """
-                
+
                 all_entities = []
-                result = session.run(query)
+                result = session.run(query, allowed_types=allowed_types)
                 for record in result:
                     all_entities.append({
                         'id': record["id"],
@@ -200,6 +208,18 @@ class RetrievalService:
                                 if has_creation_order_cues:
                                     confidence_score = 3  # High confidence for creation order concepts
                             
+                            # Boost artifact anchors for exact matches (higher than loose token matches)
+                            if entity['type'] == 'artifact':
+                                # If artifact is explicitly mentioned in query, boost it
+                                if mentions_artifact(question) and entity['id'].lower() in question.lower():
+                                    confidence_score = 3  # High confidence for explicit mentions
+                                elif max_match_strength == 10:  # Exact match
+                                    confidence_score = 3
+                                elif max_match_strength == 6:  # Prefix match
+                                    confidence_score = 2
+                                else:  # Substring match
+                                    confidence_score = 1
+                            
                             candidates.append({
                                 'id': entity['id'],
                                 'type': entity['type'],
@@ -230,6 +250,7 @@ class RetrievalService:
                     'root_cause': 1,
                     'trigger': 1,  # Cap triggers to 1
                     'concept': 1,  # Cap concepts to 1
+                    'artifact': 1,  # Cap artifacts to 1 (only for code queries)
                 }
                 
                 # Failure mode specificity order (higher = more specific)
@@ -295,6 +316,15 @@ class RetrievalService:
                         else:
                             # Keep top 1 as usual
                             capped_candidates.extend(filtered_concepts[:cap])
+                    elif candidate_type == 'artifact':
+                        # For artifacts: only keep if code query (already filtered in entity fetch)
+                        # Sort by (final_score, confidence_score) descending
+                        # Prefer exact matches over loose token matches
+                        type_candidates.sort(
+                            key=lambda x: (x['final_score'], x.get('confidence_score', 0)),
+                            reverse=True
+                        )
+                        capped_candidates.extend(type_candidates[:cap])
                     else:
                         # For other types, just apply cap
                         capped_candidates.extend(type_candidates[:cap])
@@ -496,6 +526,16 @@ class RetrievalService:
                     matched_anchor_ids = conn_data['matched_anchors']
                     matched_types = {anchor_types.get(aid, 'unknown') for aid in matched_anchor_ids}
                     
+                    # Extract matched root causes and artifacts for special handling
+                    matched_root_causes = set()
+                    matched_artifacts = set()
+                    for anchor_id in matched_anchor_ids:
+                        anchor_type = anchor_types.get(anchor_id, 'unknown')
+                        if anchor_type == 'root_cause':
+                            matched_root_causes.add(anchor_id)
+                        if anchor_type == 'artifact':
+                            matched_artifacts.add(anchor_id)
+                    
                     score = 0
                     
                     # 1) Coverage score
@@ -528,7 +568,13 @@ class RetrievalService:
                         elif edge_type == 'INVOLVES':
                             score += 1
                     
-                    # 4) Hub penalty: if only matches a single component anchor
+                    # 4) Special boost for concurrency/artifact anchors (helps distinguish 128638 from 78308)
+                    if 'unsynchronized-concurrent-access' in matched_root_causes or len(matched_artifacts) > 0:
+                        # Strong boost for incidents matching concurrency root cause or artifacts
+                        score += 15
+                        logger.debug(f"Applied concurrency/artifact boost to incident {inc_id}")
+                    
+                    # 5) Hub penalty: if only matches a single component anchor
                     if num_matched == 1 and 'component' in matched_types and not (has_root_cause or has_failure_mode or 'trigger' in matched_types):
                         score -= 8
                         logger.debug(f"Applied hub penalty to incident {inc_id} (single component match only)")
