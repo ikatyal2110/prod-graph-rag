@@ -1,0 +1,745 @@
+{
+  "entities": [
+    {
+      "id": "kube-apiserver",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "etcd",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "kube-scheduler",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "kube-controller-manager",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "cloud-controller-manager",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "kubelet",
+      "type": "component",
+      "attributes": {
+        "layer": "node"
+      }
+    },
+    {
+      "id": "kube-proxy",
+      "type": "component",
+      "attributes": {
+        "layer": "networking"
+      }
+    },
+    {
+      "id": "control-plane",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "high-availability",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "fault-tolerance",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "node-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "global-cluster-decisions",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "pod-scheduling",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "node-selection",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "filtering",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "scoring",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "binding",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "feasible-nodes",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "container-runtime",
+      "type": "component",
+      "attributes": {
+        "layer": "node"
+      }
+    },
+    {
+      "id": "node-registration",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "node-health-checking",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "pod-execution",
+      "type": "concept",
+      "attributes": {
+        "domain": "runtime"
+      }
+    },
+    {
+      "id": "control-loop",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "desired-state",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "current-state",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "state-reconciliation",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "etcd-cluster",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "leader-election",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "heartbeat",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "cluster-stability",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "resource-starvation",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "scheduling-framework",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "plugin-architecture",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "scheduling-plugins",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "extension-points",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "scheduling-cycle",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "binding-cycle",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "request-prioritization",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "fair-queuing",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "api-request-categorization",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "resource-limits",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "request-throttling",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "network-proxy",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "egress-traffic-control",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "control-plane-network-isolation",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "storage-version-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "api-version-migration",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "ha-api-server-support",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "etcd-client-interface",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "dependency-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "dynamic-configuration",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "configuration-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "kubelet-api-authorization",
+      "type": "concept",
+      "attributes": {
+        "domain": "security"
+      }
+    },
+    {
+      "id": "access-control",
+      "type": "concept",
+      "attributes": {
+        "domain": "security"
+      }
+    },
+    {
+      "id": "ipvs-load-balancing",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "load-balancing",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "endpointslice",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "service-discovery",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "endpoint-scaling",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "horizontal-pod-autoscaler",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "container-resource-autoscaling",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "resource-scaling",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "control-plane",
+      "to": "kube-apiserver",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-plane",
+      "to": "etcd",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-plane",
+      "to": "kube-scheduler",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-plane",
+      "to": "kube-controller-manager",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "high-availability",
+      "to": "control-plane",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "fault-tolerance",
+      "to": "control-plane",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-controller-manager",
+      "to": "node-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-scheduler",
+      "to": "global-cluster-decisions",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-scheduler",
+      "to": "pod-scheduling",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "pod-scheduling",
+      "to": "node-selection",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "node-selection",
+      "to": "filtering",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "node-selection",
+      "to": "scoring",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scoring",
+      "to": "binding",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "filtering",
+      "to": "feasible-nodes",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "binding",
+      "to": "kubelet",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "node-registration",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "kube-apiserver",
+      "type": "USES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "node-health-checking",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "pod-execution",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "container-runtime",
+      "to": "pod-execution",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-controller-manager",
+      "to": "control-loop",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-loop",
+      "to": "desired-state",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-loop",
+      "to": "current-state",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-loop",
+      "to": "state-reconciliation",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-controller-manager",
+      "to": "kube-apiserver",
+      "type": "USES"
+    },
+    {
+      "from": "etcd",
+      "to": "etcd-cluster",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "etcd-cluster",
+      "to": "leader-election",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "leader-election",
+      "to": "heartbeat",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "heartbeat",
+      "to": "cluster-stability",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "resource-starvation",
+      "to": "cluster-stability",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "kube-scheduler",
+      "to": "scheduling-framework",
+      "type": "USES"
+    },
+    {
+      "from": "scheduling-framework",
+      "to": "plugin-architecture",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scheduling-framework",
+      "to": "scheduling-plugins",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scheduling-plugins",
+      "to": "extension-points",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scheduling-cycle",
+      "to": "binding-cycle",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "request-prioritization",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "fair-queuing",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "request-prioritization",
+      "to": "api-request-categorization",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "fair-queuing",
+      "to": "resource-limits",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "resource-limits",
+      "to": "request-throttling",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "network-proxy",
+      "type": "USES"
+    },
+    {
+      "from": "etcd",
+      "to": "network-proxy",
+      "type": "USES"
+    },
+    {
+      "from": "network-proxy",
+      "to": "egress-traffic-control",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "egress-traffic-control",
+      "to": "control-plane-network-isolation",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "storage-version-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "storage-version-management",
+      "to": "etcd",
+      "type": "USES"
+    },
+    {
+      "from": "storage-version-management",
+      "to": "api-version-migration",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "storage-version-management",
+      "to": "ha-api-server-support",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "etcd",
+      "type": "DEPENDS_ON"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "etcd-client-interface",
+      "type": "USES"
+    },
+    {
+      "from": "etcd-client-interface",
+      "to": "dependency-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "dynamic-configuration",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "dynamic-configuration",
+      "to": "configuration-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "kubelet-api-authorization",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet-api-authorization",
+      "to": "access-control",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-proxy",
+      "to": "ipvs-load-balancing",
+      "type": "USES"
+    },
+    {
+      "from": "ipvs-load-balancing",
+      "to": "load-balancing",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "endpointslice",
+      "to": "service-discovery",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "endpointslice",
+      "to": "endpoint-scaling",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "horizontal-pod-autoscaler",
+      "to": "container-resource-autoscaling",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "container-resource-autoscaling",
+      "to": "resource-scaling",
+      "type": "INVOLVES"
+    }
+  ]
+}

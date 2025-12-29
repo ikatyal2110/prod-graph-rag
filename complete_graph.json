@@ -1,0 +1,1317 @@
+{
+  "entities": [
+    {
+      "id": "kubelet",
+      "type": "component",
+      "attributes": {
+        "layer": "node"
+      }
+    },
+    {
+      "id": "128638",
+      "type": "incident",
+      "attributes": {
+        "severity": "high",
+        "version": ""
+      }
+    },
+    {
+      "id": "crash",
+      "type": "failure_mode",
+      "attributes": {}
+    },
+    {
+      "id": "unsynchronized-concurrent-access",
+      "type": "root_cause",
+      "attributes": {
+        "category": "concurrency"
+      }
+    },
+    {
+      "id": "concurrency-control",
+      "type": "concept",
+      "attributes": {
+        "domain": "runtime"
+      }
+    },
+    {
+      "id": "shared-state-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "runtime"
+      }
+    },
+    {
+      "id": "containerMap",
+      "type": "artifact",
+      "attributes": {
+        "kind": "data_structure"
+      }
+    },
+    {
+      "id": "ContainerMap.Add",
+      "type": "artifact",
+      "attributes": {
+        "kind": "function"
+      }
+    },
+    {
+      "id": "kube-scheduler",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "124930",
+      "type": "incident",
+      "attributes": {
+        "severity": "high",
+        "version": "v1.30.0"
+      }
+    },
+    {
+      "id": "panic",
+      "type": "failure_mode",
+      "attributes": {}
+    },
+    {
+      "id": "division-by-zero",
+      "type": "root_cause",
+      "attributes": {
+        "category": "arithmetic"
+      }
+    },
+    {
+      "id": "scheduler-scoring-logic",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "edge-case-handling",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "pod-configuration",
+      "type": "trigger",
+      "attributes": {
+        "trigger_type": "config"
+      }
+    },
+    {
+      "id": "kube-proxy",
+      "type": "component",
+      "attributes": {
+        "layer": "networking"
+      }
+    },
+    {
+      "id": "129982",
+      "type": "incident",
+      "attributes": {
+        "severity": "critical",
+        "version": "v1.32"
+      }
+    },
+    {
+      "id": "oom",
+      "type": "failure_mode",
+      "attributes": {}
+    },
+    {
+      "id": "unbounded-memory-growth",
+      "type": "root_cause",
+      "attributes": {
+        "category": "resource-management"
+      }
+    },
+    {
+      "id": "conntrack-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "resource-cleanup",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "udp-endpoint-change",
+      "type": "trigger",
+      "attributes": {
+        "trigger_type": "network"
+      }
+    },
+    {
+      "id": "pod-with-udp-port-update",
+      "type": "trigger",
+      "attributes": {
+        "trigger_type": "workload"
+      }
+    },
+    {
+      "id": "vishvananda/netlink",
+      "type": "artifact",
+      "attributes": {
+        "kind": "library"
+      }
+    },
+    {
+      "id": "conntrack_linux.go",
+      "type": "artifact",
+      "attributes": {
+        "kind": "file"
+      }
+    },
+    {
+      "id": "conntrack-table",
+      "type": "artifact",
+      "attributes": {
+        "kind": "data_structure"
+      }
+    },
+    {
+      "id": "kube-apiserver",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "135333",
+      "type": "incident",
+      "attributes": {
+        "severity": "medium",
+        "version": ""
+      }
+    },
+    {
+      "id": "validation-gaps",
+      "type": "root_cause",
+      "attributes": {
+        "category": "validation"
+      }
+    },
+    {
+      "id": "api-request-processing",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "resource-creation-order",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "ipallocator.go",
+      "type": "artifact",
+      "attributes": {
+        "kind": "file"
+      }
+    },
+    {
+      "id": "serviceToRef",
+      "type": "artifact",
+      "attributes": {
+        "kind": "function"
+      }
+    },
+    {
+      "id": "IPAddress",
+      "type": "artifact",
+      "attributes": {
+        "kind": "data_structure"
+      }
+    },
+    {
+      "id": "128709",
+      "type": "incident",
+      "attributes": {
+        "severity": "medium",
+        "version": ""
+      }
+    },
+    {
+      "id": "validation-error",
+      "type": "root_cause",
+      "attributes": {
+        "category": "validation"
+      }
+    },
+    {
+      "id": "feature-gate-compatibility",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "api-backward-compatibility",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "podlogsquerysplitsstreams-feature-gate",
+      "type": "trigger",
+      "attributes": {
+        "trigger_type": "config"
+      }
+    },
+    {
+      "id": "78308",
+      "type": "incident",
+      "attributes": {
+        "severity": "medium",
+        "version": "v1.13.6"
+      }
+    },
+    {
+      "id": "degradation",
+      "type": "failure_mode",
+      "attributes": {}
+    },
+    {
+      "id": "incorrect-lifecycle-state-handling",
+      "type": "root_cause",
+      "attributes": {
+        "category": "lifecycle"
+      }
+    },
+    {
+      "id": "container-security",
+      "type": "concept",
+      "attributes": {
+        "domain": "security"
+      }
+    },
+    {
+      "id": "container-lifecycle-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "runtime"
+      }
+    },
+    {
+      "id": "container-restart",
+      "type": "trigger",
+      "attributes": {
+        "trigger_type": "runtime"
+      }
+    },
+    {
+      "id": "pre-pulled-image",
+      "type": "trigger",
+      "attributes": {
+        "trigger_type": "runtime"
+      }
+    },
+    {
+      "id": "etcd",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "kube-controller-manager",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "cloud-controller-manager",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "control-plane",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "high-availability",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "fault-tolerance",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "node-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "global-cluster-decisions",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "pod-scheduling",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "node-selection",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "filtering",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "scoring",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "binding",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "feasible-nodes",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "container-runtime",
+      "type": "component",
+      "attributes": {
+        "layer": "node"
+      }
+    },
+    {
+      "id": "node-registration",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "node-health-checking",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "pod-execution",
+      "type": "concept",
+      "attributes": {
+        "domain": "runtime"
+      }
+    },
+    {
+      "id": "control-loop",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "desired-state",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "current-state",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "state-reconciliation",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "etcd-cluster",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "leader-election",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "heartbeat",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "cluster-stability",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "resource-starvation",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "scheduling-framework",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "plugin-architecture",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "scheduling-plugins",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "extension-points",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "scheduling-cycle",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "binding-cycle",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "request-prioritization",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "fair-queuing",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "api-request-categorization",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "resource-limits",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "request-throttling",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "network-proxy",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "egress-traffic-control",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "control-plane-network-isolation",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "storage-version-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "api-version-migration",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "ha-api-server-support",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "etcd-client-interface",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "dependency-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "dynamic-configuration",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "configuration-management",
+      "type": "concept",
+      "attributes": {
+        "domain": "architecture"
+      }
+    },
+    {
+      "id": "kubelet-api-authorization",
+      "type": "concept",
+      "attributes": {
+        "domain": "security"
+      }
+    },
+    {
+      "id": "access-control",
+      "type": "concept",
+      "attributes": {
+        "domain": "security"
+      }
+    },
+    {
+      "id": "ipvs-load-balancing",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "load-balancing",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "endpointslice",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "service-discovery",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "endpoint-scaling",
+      "type": "concept",
+      "attributes": {
+        "domain": "networking"
+      }
+    },
+    {
+      "id": "horizontal-pod-autoscaler",
+      "type": "component",
+      "attributes": {
+        "layer": "control-plane"
+      }
+    },
+    {
+      "id": "container-resource-autoscaling",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    },
+    {
+      "id": "resource-scaling",
+      "type": "concept",
+      "attributes": {
+        "domain": "scheduling"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "128638",
+      "to": "kubelet",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "128638",
+      "to": "crash",
+      "type": "EXHIBITS"
+    },
+    {
+      "from": "128638",
+      "to": "unsynchronized-concurrent-access",
+      "type": "CAUSED_BY"
+    },
+    {
+      "from": "unsynchronized-concurrent-access",
+      "to": "crash",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "containerMap",
+      "to": "unsynchronized-concurrent-access",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "ContainerMap.Add",
+      "to": "unsynchronized-concurrent-access",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "containerMap",
+      "type": "USES"
+    },
+    {
+      "from": "kubelet",
+      "to": "ContainerMap.Add",
+      "type": "USES"
+    },
+    {
+      "from": "128638",
+      "to": "concurrency-control",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "128638",
+      "to": "shared-state-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "124930",
+      "to": "kube-scheduler",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "124930",
+      "to": "panic",
+      "type": "EXHIBITS"
+    },
+    {
+      "from": "124930",
+      "to": "division-by-zero",
+      "type": "CAUSED_BY"
+    },
+    {
+      "from": "124930",
+      "to": "pod-configuration",
+      "type": "TRIGGERED_BY"
+    },
+    {
+      "from": "division-by-zero",
+      "to": "panic",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "pod-configuration",
+      "to": "division-by-zero",
+      "type": "ACTIVATES"
+    },
+    {
+      "from": "124930",
+      "to": "scheduler-scoring-logic",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "124930",
+      "to": "edge-case-handling",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "129982",
+      "to": "kube-proxy",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "129982",
+      "to": "oom",
+      "type": "EXHIBITS"
+    },
+    {
+      "from": "129982",
+      "to": "unbounded-memory-growth",
+      "type": "CAUSED_BY"
+    },
+    {
+      "from": "129982",
+      "to": "udp-endpoint-change",
+      "type": "TRIGGERED_BY"
+    },
+    {
+      "from": "129982",
+      "to": "pod-with-udp-port-update",
+      "type": "TRIGGERED_BY"
+    },
+    {
+      "from": "unbounded-memory-growth",
+      "to": "oom",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "udp-endpoint-change",
+      "to": "unbounded-memory-growth",
+      "type": "ACTIVATES"
+    },
+    {
+      "from": "pod-with-udp-port-update",
+      "to": "udp-endpoint-change",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "vishvananda/netlink",
+      "to": "unbounded-memory-growth",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "conntrack_linux.go",
+      "to": "unbounded-memory-growth",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "conntrack-table",
+      "to": "unbounded-memory-growth",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "129982",
+      "to": "conntrack-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "129982",
+      "to": "resource-cleanup",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "135333",
+      "to": "kube-apiserver",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "135333",
+      "to": "validation-gaps",
+      "type": "CAUSED_BY"
+    },
+    {
+      "from": "ipallocator.go",
+      "to": "validation-gaps",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "serviceToRef",
+      "to": "validation-gaps",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "IPAddress",
+      "to": "validation-gaps",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "ipallocator.go",
+      "type": "USES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "serviceToRef",
+      "type": "USES"
+    },
+    {
+      "from": "135333",
+      "to": "api-request-processing",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "135333",
+      "to": "resource-creation-order",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "128709",
+      "to": "kube-apiserver",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "128709",
+      "to": "validation-error",
+      "type": "CAUSED_BY"
+    },
+    {
+      "from": "128709",
+      "to": "podlogsquerysplitsstreams-feature-gate",
+      "type": "TRIGGERED_BY"
+    },
+    {
+      "from": "podlogsquerysplitsstreams-feature-gate",
+      "to": "validation-error",
+      "type": "ACTIVATES"
+    },
+    {
+      "from": "128709",
+      "to": "feature-gate-compatibility",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "128709",
+      "to": "api-backward-compatibility",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "78308",
+      "to": "kubelet",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "78308",
+      "to": "degradation",
+      "type": "EXHIBITS"
+    },
+    {
+      "from": "78308",
+      "to": "incorrect-lifecycle-state-handling",
+      "type": "CAUSED_BY"
+    },
+    {
+      "from": "78308",
+      "to": "container-restart",
+      "type": "TRIGGERED_BY"
+    },
+    {
+      "from": "78308",
+      "to": "pre-pulled-image",
+      "type": "TRIGGERED_BY"
+    },
+    {
+      "from": "incorrect-lifecycle-state-handling",
+      "to": "degradation",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "container-restart",
+      "to": "incorrect-lifecycle-state-handling",
+      "type": "ACTIVATES"
+    },
+    {
+      "from": "pre-pulled-image",
+      "to": "incorrect-lifecycle-state-handling",
+      "type": "ACTIVATES"
+    },
+    {
+      "from": "78308",
+      "to": "container-security",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "78308",
+      "to": "container-lifecycle-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-plane",
+      "to": "kube-apiserver",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-plane",
+      "to": "etcd",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-plane",
+      "to": "kube-scheduler",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-plane",
+      "to": "kube-controller-manager",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "high-availability",
+      "to": "control-plane",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "fault-tolerance",
+      "to": "control-plane",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-controller-manager",
+      "to": "node-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-scheduler",
+      "to": "global-cluster-decisions",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-scheduler",
+      "to": "pod-scheduling",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "pod-scheduling",
+      "to": "node-selection",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "node-selection",
+      "to": "filtering",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "node-selection",
+      "to": "scoring",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scoring",
+      "to": "binding",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "filtering",
+      "to": "feasible-nodes",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "binding",
+      "to": "kubelet",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "node-registration",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "kube-apiserver",
+      "type": "USES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "node-health-checking",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "pod-execution",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "container-runtime",
+      "to": "pod-execution",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-controller-manager",
+      "to": "control-loop",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-loop",
+      "to": "desired-state",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-loop",
+      "to": "current-state",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "control-loop",
+      "to": "state-reconciliation",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-controller-manager",
+      "to": "kube-apiserver",
+      "type": "USES"
+    },
+    {
+      "from": "etcd",
+      "to": "etcd-cluster",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "etcd-cluster",
+      "to": "leader-election",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "leader-election",
+      "to": "heartbeat",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "heartbeat",
+      "to": "cluster-stability",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "resource-starvation",
+      "to": "cluster-stability",
+      "type": "AFFECTS"
+    },
+    {
+      "from": "kube-scheduler",
+      "to": "scheduling-framework",
+      "type": "USES"
+    },
+    {
+      "from": "scheduling-framework",
+      "to": "plugin-architecture",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scheduling-framework",
+      "to": "scheduling-plugins",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scheduling-plugins",
+      "to": "extension-points",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "scheduling-cycle",
+      "to": "binding-cycle",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "request-prioritization",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "fair-queuing",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "request-prioritization",
+      "to": "api-request-categorization",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "fair-queuing",
+      "to": "resource-limits",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "resource-limits",
+      "to": "request-throttling",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "network-proxy",
+      "type": "USES"
+    },
+    {
+      "from": "etcd",
+      "to": "network-proxy",
+      "type": "USES"
+    },
+    {
+      "from": "network-proxy",
+      "to": "egress-traffic-control",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "egress-traffic-control",
+      "to": "control-plane-network-isolation",
+      "type": "LEADS_TO"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "storage-version-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "storage-version-management",
+      "to": "etcd",
+      "type": "USES"
+    },
+    {
+      "from": "storage-version-management",
+      "to": "api-version-migration",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "storage-version-management",
+      "to": "ha-api-server-support",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "etcd",
+      "type": "DEPENDS_ON"
+    },
+    {
+      "from": "kube-apiserver",
+      "to": "etcd-client-interface",
+      "type": "USES"
+    },
+    {
+      "from": "etcd-client-interface",
+      "to": "dependency-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "dynamic-configuration",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "dynamic-configuration",
+      "to": "configuration-management",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet",
+      "to": "kubelet-api-authorization",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kubelet-api-authorization",
+      "to": "access-control",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "kube-proxy",
+      "to": "ipvs-load-balancing",
+      "type": "USES"
+    },
+    {
+      "from": "ipvs-load-balancing",
+      "to": "load-balancing",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "endpointslice",
+      "to": "service-discovery",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "endpointslice",
+      "to": "endpoint-scaling",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "horizontal-pod-autoscaler",
+      "to": "container-resource-autoscaling",
+      "type": "INVOLVES"
+    },
+    {
+      "from": "container-resource-autoscaling",
+      "to": "resource-scaling",
+      "type": "INVOLVES"
+    }
+  ]
+}

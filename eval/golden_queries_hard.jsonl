@@ -1,0 +1,16 @@
+{"query":"kubelet crashes with race condition in container map","expected_incident_ids":["128638"]}
+{"query":"scheduler crashes due to divide by 0 error in pod topology calculation","expected_incident_ids":["124930"]}
+{"query":"kube-proxy runs out of memory when cleaning up connection tracking for UDP services","expected_incident_ids":["129982"]}
+{"query":"api server rejects pod log requests when stream parameter missing with new feature enabled","expected_incident_ids":["128709"]}
+{"query":"service creation fails validation because name checked after IP allocation","expected_incident_ids":["135333"]}
+{"query":"container runs as root user after restart even when not configured to do so","expected_incident_ids":["78308"]}
+{"query":"kubelet panic concurrent map access without proper locking","expected_incident_ids":["128638"]}
+{"query":"scheduler integer division by zero panic with certain pod configurations","expected_incident_ids":["124930"]}
+{"query":"proxy component memory spikes to 12GB during UDP endpoint updates","expected_incident_ids":["129982"]}
+{"query":"feature gate causes backward compatibility issue with log streaming API","expected_incident_ids":["128709"]}
+{"query":"api server creates invalid IP address objects when service name is empty","expected_incident_ids":["135333"]}
+{"query":"kubelet incorrectly sets container user ID on restart with pre-pulled images","expected_incident_ids":["78308"]}
+{"query":"node agent crashes from simultaneous map modifications in multiple goroutines","expected_incident_ids":["128638"]}
+{"query":"scheduling component divides by zero when calculating spread constraints","expected_incident_ids":["124930"]}
+{"query":"network proxy consumes excessive memory cleaning connection state for DNS pods","expected_incident_ids":["129982"]}
+
