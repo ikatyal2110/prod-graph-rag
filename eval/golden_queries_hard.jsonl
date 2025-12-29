@@ -1,7 +1,7 @@
 {"query":"kubelet crashes with race condition in container map","expected_incident_ids":["128638"],"forbidden_root_causes":["division-by-zero"],"forbidden_failure_modes":["validation_error"],"require_provenance":true}
-{"query":"scheduler crashes due to divide by 0 error in pod topology calculation","expected_incident_ids":["124930"],"forbidden_root_causes":["unsynchronized-concurrent-access","validation-error"],"forbidden_failure_modes":["validation_error"]}
+{"query":"scheduler crashes due to divide by 0 error in pod topology calculation","expected_incident_ids":["124930"],"forbidden_root_causes":["unsynchronized-concurrent-access","validation-error"],"forbidden_failure_modes":["validation_error"],"require_provenance":true}
 {"query":"kube-proxy runs out of memory when cleaning up connection tracking for UDP services","expected_incident_ids":["129982"],"forbidden_root_causes":["division-by-zero"],"forbidden_failure_modes":["validation_error"]}
-{"query":"api server rejects pod log requests when stream parameter missing with new feature enabled","expected_incident_ids":["128709"],"forbidden_root_causes":["division-by-zero"],"forbidden_failure_modes":["oom"]}
+{"query":"api server rejects pod log requests when stream parameter missing with new feature enabled","expected_incident_ids":["128709"],"forbidden_root_causes":["division-by-zero"],"forbidden_failure_modes":["oom"],"require_provenance":true}
 {"query":"service creation fails validation because name checked after IP allocation","expected_incident_ids":["135333"]}
 {"query":"container runs as root user after restart even when not configured to do so","expected_incident_ids":["78308"]}
 {"query":"kubelet panic concurrent map access without proper locking","expected_incident_ids":["128638"]}

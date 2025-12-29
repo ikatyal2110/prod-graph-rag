@@ -116,6 +116,23 @@ class AskRequest(BaseModel):
     max_facts: int = Field(default=12, ge=1, le=50, description="Maximum key facts to return")
 
 
+class Warning(BaseModel):
+    """Warning about missing citation or other issue"""
+    from_id: str = Field(..., alias="from", description="Source entity ID")
+    rel: str = Field(..., description="Relationship type")
+    to_id: str = Field(..., alias="to", description="Target entity ID")
+    reason: str = Field(..., description="Reason for warning")
+    
+    class Config:
+        populate_by_name = True
+
+
+class Refusal(BaseModel):
+    """Refusal response when insufficient evidence"""
+    is_refusal: bool = Field(..., description="Whether this is a refusal response")
+    reason: str = Field(..., description="Reason for refusal")
+
+
 class AskResponse(BaseModel):
     """Ask question response model"""
     question: str = Field(..., description="Original question")
@@ -123,4 +140,6 @@ class AskResponse(BaseModel):
     evidence: Evidence = Field(..., description="Evidence collected from graph")
     key_facts: List[Fact] = Field(default=[], description="Key facts (prioritized relationships)")
     incident_cards: List[ExplainResponse] = Field(default=[], description="Incident cards (explain responses without facts)")
+    warnings: List[Warning] = Field(default=[], description="Warnings about missing citations or other issues")
+    refusal: Optional[Refusal] = Field(default=None, description="Refusal response if insufficient evidence")
 

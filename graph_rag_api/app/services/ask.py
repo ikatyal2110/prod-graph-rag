@@ -1,14 +1,17 @@
 """Service for asking questions and generating deterministic answers"""
 
-from typing import List
+from typing import List, Tuple, Optional
 
 from app.db import Neo4jClient
 from app.services.retrieval import RetrievalService
 from app.services.explain import ExplainService
-from app.models.api import AskResponse, ExplainResponse, Fact, Evidence
+from app.models.api import AskResponse, ExplainResponse, Fact, Evidence, Warning, Refusal
 from app.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Relationship types that require citations (evidence_refs)
+REQUIRED_CITED_RELS = {"AFFECTS", "EXHIBITS", "CAUSED_BY", "TRIGGERED_BY", "USES"}
 
 
 class AskService:
@@ -78,14 +81,24 @@ class AskService:
                 logger.warning(f"Could not explain incident {incident_id}: {e}")
                 # Continue with other incidents
         
-        # Step 3: Select and sort key facts deterministically
-        # First, prioritize and sort by relationship type
-        key_facts = self._sort_key_facts(facts)[:max_facts]
+        # Step 3: Filter facts to enforce "no citation, no claim"
+        # Check all facts with required relationship types for citations
+        filtered_facts, warnings = self._filter_uncited_facts(facts)
         
-        logger.info(f"Selected {len(key_facts)} key facts from {len(facts)} total facts")
+        # Step 4: Select and sort key facts deterministically (only cited facts)
+        key_facts = self._sort_key_facts(filtered_facts)[:max_facts]
         
-        # Step 4: Build deterministic answer
-        answer = self._build_answer(incident_cards)
+        logger.info(f"Selected {len(key_facts)} key facts from {len(filtered_facts)} cited facts (filtered from {len(facts)} total)")
+        
+        # Step 5: Check if incident cards have required fields (component, failure_mode, root_cause)
+        # Filter incident cards to only include those with cited required facts
+        filtered_cards, refusal = self._filter_incident_cards(incident_cards, filtered_facts)
+        
+        # Step 6: Build deterministic answer (or refusal)
+        if refusal and refusal.is_refusal:
+            answer = f"Insufficient evidence: {refusal.reason}"
+        else:
+            answer = self._build_answer(filtered_cards)
         
         logger.info(f"Generated answer for question: {question[:50]}...")
         
@@ -94,7 +107,9 @@ class AskService:
             answer=answer,
             evidence=evidence,
             key_facts=key_facts,
-            incident_cards=incident_cards
+            incident_cards=filtered_cards,
+            warnings=warnings,
+            refusal=refusal
         )
     
     def _build_answer(self, incident_cards: List[ExplainResponse]) -> str:
@@ -280,3 +295,109 @@ class AskService:
                 deduplicated.append(fact)
         
         return deduplicated
+    
+    def _filter_uncited_facts(self, facts: List[Fact]) -> Tuple[List[Fact], List[Warning]]:
+        """
+        Filter out facts that require citations but don't have evidence_refs.
+        
+        Args:
+            facts: List of facts to filter
+            
+        Returns:
+            Tuple of (filtered_facts, warnings)
+        """
+        filtered_facts = []
+        warnings = []
+        
+        for fact in facts:
+            if fact.rel in REQUIRED_CITED_RELS:
+                # Check if fact has evidence_refs
+                if not fact.evidence_refs or len(fact.evidence_refs) == 0:
+                    # Missing citation - add warning and exclude from facts
+                    warnings.append(Warning(
+                        from_id=fact.from_id,
+                        rel=fact.rel,
+                        to_id=fact.to_id,
+                        reason=f"Missing citation: {fact.rel} relationship requires evidence_refs"
+                    ))
+                    logger.debug(f"Filtered out uncited fact: {fact.from_id} {fact.rel} {fact.to_id}")
+                else:
+                    # Has citation - include it
+                    filtered_facts.append(fact)
+            else:
+                # Not a required citation type - include it
+                filtered_facts.append(fact)
+        
+        return filtered_facts, warnings
+    
+    def _filter_incident_cards(
+        self, 
+        incident_cards: List[ExplainResponse], 
+        cited_facts: List[Fact]
+    ) -> Tuple[List[ExplainResponse], Optional[Refusal]]:
+        """
+        Filter incident cards to only include those with cited required facts.
+        Check if cards have required fields (component, failure_mode, root_cause) with citations.
+        
+        Args:
+            incident_cards: List of incident cards
+            cited_facts: List of facts that have citations
+            
+        Returns:
+            Tuple of (filtered_cards, refusal)
+        """
+        # Build a set of cited fact triples for quick lookup
+        cited_triples = set()
+        for fact in cited_facts:
+            cited_triples.add((fact.from_id, fact.rel, fact.to_id))
+        
+        filtered_cards = []
+        missing_fields = []
+        
+        for card in incident_cards:
+            incident_id = card.incident_id
+            has_component = False
+            has_failure_mode = False
+            has_root_cause = False
+            
+            # Check if required fields exist and are cited
+            # Check AFFECTS -> component
+            for component in card.affects:
+                if (incident_id, "AFFECTS", component) in cited_triples:
+                    has_component = True
+                    break
+            
+            # Check EXHIBITS -> failure_mode
+            for failure_mode in card.failure_modes:
+                if (incident_id, "EXHIBITS", failure_mode) in cited_triples:
+                    has_failure_mode = True
+                    break
+            
+            # Check CAUSED_BY -> root_cause
+            for root_cause in card.root_causes:
+                if (incident_id, "CAUSED_BY", root_cause) in cited_triples:
+                    has_root_cause = True
+                    break
+            
+            # If all required fields are present and cited, include the card
+            if has_component and has_failure_mode and has_root_cause:
+                filtered_cards.append(card)
+            else:
+                # Track missing fields
+                missing = []
+                if not has_component:
+                    missing.append("component")
+                if not has_failure_mode:
+                    missing.append("failure_mode")
+                if not has_root_cause:
+                    missing.append("root_cause")
+                missing_fields.append(f"Incident {incident_id} missing cited: {', '.join(missing)}")
+                logger.debug(f"Filtered out incident card {incident_id} due to missing cited fields: {missing}")
+        
+        # If no cards remain and we had cards, create refusal
+        if len(incident_cards) > 0 and len(filtered_cards) == 0:
+            reason = "Required fields (component, failure_mode, root_cause) are missing citations. " + "; ".join(missing_fields)
+            refusal = Refusal(is_refusal=True, reason=reason)
+            return [], refusal
+        
+        return filtered_cards, None

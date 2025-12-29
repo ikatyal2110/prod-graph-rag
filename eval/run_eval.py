@@ -126,7 +126,9 @@ def query_ask_api(base_url: str, question: str) -> Tuple[Dict[str, Any], bool]:
             "triggers": set(),
             "concepts": set(),
             "artifacts": set(),
-            "facts": []
+            "facts": [],
+            "warnings": [],
+            "refusal": None
         }
         
         # Extract incident IDs
@@ -158,6 +160,12 @@ def query_ask_api(base_url: str, question: str) -> Tuple[Dict[str, Any], bool]:
                     if 'artifacts' in card and isinstance(card['artifacts'], list):
                         structured["artifacts"].update(str(a) for a in card['artifacts'])
         
+        # Extract warnings and refusal
+        if 'warnings' in data and isinstance(data['warnings'], list):
+            structured["warnings"] = data['warnings']
+        if 'refusal' in data:
+            structured["refusal"] = data['refusal']
+        
         # Extract from key_facts
         if 'key_facts' in data and isinstance(data['key_facts'], list):
             for fact in data['key_facts']:
@@ -168,6 +176,12 @@ def query_ask_api(base_url: str, question: str) -> Tuple[Dict[str, Any], bool]:
                         "to": str(fact.get('to', fact.get('to_id', ''))),
                         "evidence_refs": fact.get('evidence_refs', [])
                     })
+        
+        # Extract warnings and refusal
+        if 'warnings' in data and isinstance(data['warnings'], list):
+            structured["warnings"] = data['warnings']
+        if 'refusal' in data:
+            structured["refusal"] = data['refusal']
         
         # Convert sets to lists for JSON serialization
         structured["components"] = list(structured["components"])
@@ -318,6 +332,8 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                 if require_provenance:
                     required_edge_types = ['AFFECTS', 'EXHIBITS', 'CAUSED_BY', 'TRIGGERED_BY', 'USES']
                     facts = structured_data.get('facts', [])
+                    
+                    # Check for uncited facts in key_facts
                     for fact in facts:
                         rel_type = fact.get('rel', '')
                         if rel_type in required_edge_types:
@@ -327,6 +343,26 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
                                 provenance_violations.append(
                                     f"Fact ({fact.get('from')}, {rel_type}, {fact.get('to')}) missing evidence_refs"
                                 )
+                    
+                    # Check for warnings about missing citations
+                    warnings = structured_data.get('warnings', [])
+                    if warnings:
+                        for warning in warnings:
+                            if isinstance(warning, dict):
+                                rel_type = warning.get('rel', '')
+                                if rel_type in required_edge_types:
+                                    provenance_checks_passed = False
+                                    provenance_violations.append(
+                                        f"Warning: {warning.get('reason', 'Missing citation')} for ({warning.get('from')}, {rel_type}, {warning.get('to')})"
+                                    )
+                    
+                    # Check for refusal (should not happen if dataset is complete)
+                    refusal = structured_data.get('refusal')
+                    if refusal and isinstance(refusal, dict) and refusal.get('is_refusal', False):
+                        provenance_checks_passed = False
+                        provenance_violations.append(
+                            f"Refusal response: {refusal.get('reason', 'Insufficient evidence')}"
+                        )
             else:
                 # If /ask failed, we can't check, so mark as failed
                 if has_forbidden_fields:
