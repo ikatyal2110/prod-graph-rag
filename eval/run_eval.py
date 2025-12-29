@@ -92,6 +92,147 @@ def query_api(base_url: str, question: str) -> Tuple[List[str], bool]:
         return [], False
 
 
+def query_ask_api(base_url: str, question: str) -> Tuple[Dict[str, Any], bool]:
+    """
+    Query the /ask endpoint to get structured response with incident cards.
+    
+    Returns:
+        (structured_data, success_flag)
+        structured_data contains:
+        - incident_ids: List[str]
+        - components: Set[str]
+        - failure_modes: Set[str]
+        - root_causes: Set[str]
+        - triggers: Set[str]
+        - concepts: Set[str]
+        - artifacts: Set[str]
+        - facts: List[Dict] with from, rel, to
+    """
+    url = f"{base_url}/ask"
+    payload = {"question": question}
+    
+    try:
+        response = requests.post(url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Extract structured fields
+        structured = {
+            "incident_ids": [],
+            "components": set(),
+            "failure_modes": set(),
+            "root_causes": set(),
+            "triggers": set(),
+            "concepts": set(),
+            "artifacts": set(),
+            "facts": []
+        }
+        
+        # Extract incident IDs
+        if 'evidence' in data and isinstance(data['evidence'], dict):
+            incident_ids = data['evidence'].get('incident_ids', [])
+            if isinstance(incident_ids, list):
+                structured["incident_ids"] = [str(id) for id in incident_ids]
+        
+        # Extract from incident_cards
+        if 'incident_cards' in data and isinstance(data['incident_cards'], list):
+            for card in data['incident_cards']:
+                if isinstance(card, dict):
+                    # Components
+                    if 'affects' in card and isinstance(card['affects'], list):
+                        structured["components"].update(str(c) for c in card['affects'])
+                    # Failure modes
+                    if 'failure_modes' in card and isinstance(card['failure_modes'], list):
+                        structured["failure_modes"].update(str(fm) for fm in card['failure_modes'])
+                    # Root causes
+                    if 'root_causes' in card and isinstance(card['root_causes'], list):
+                        structured["root_causes"].update(str(rc) for rc in card['root_causes'])
+                    # Triggers
+                    if 'triggers' in card and isinstance(card['triggers'], list):
+                        structured["triggers"].update(str(t) for t in card['triggers'])
+                    # Concepts
+                    if 'concepts' in card and isinstance(card['concepts'], list):
+                        structured["concepts"].update(str(c) for c in card['concepts'])
+                    # Artifacts
+                    if 'artifacts' in card and isinstance(card['artifacts'], list):
+                        structured["artifacts"].update(str(a) for a in card['artifacts'])
+        
+        # Extract from key_facts
+        if 'key_facts' in data and isinstance(data['key_facts'], list):
+            for fact in data['key_facts']:
+                if isinstance(fact, dict):
+                    structured["facts"].append({
+                        "from": str(fact.get('from', fact.get('from_id', ''))),
+                        "rel": str(fact.get('rel', '')),
+                        "to": str(fact.get('to', fact.get('to_id', '')))
+                    })
+        
+        # Convert sets to lists for JSON serialization
+        structured["components"] = list(structured["components"])
+        structured["failure_modes"] = list(structured["failure_modes"])
+        structured["root_causes"] = list(structured["root_causes"])
+        structured["triggers"] = list(structured["triggers"])
+        structured["concepts"] = list(structured["concepts"])
+        structured["artifacts"] = list(structured["artifacts"])
+        
+        return structured, True
+            
+    except requests.exceptions.Timeout:
+        print(f"Error: Request timeout for ask: {question[:50]}...", file=sys.stderr)
+        return {}, False
+    except requests.exceptions.ConnectionError:
+        print(f"Error: Could not connect to {base_url}", file=sys.stderr)
+        return {}, False
+    except requests.exceptions.HTTPError as e:
+        print(f"Error: HTTP {e.response.status_code} for ask: {question[:50]}...", file=sys.stderr)
+        return {}, False
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON response for ask: {question[:50]}...: {e}", file=sys.stderr)
+        return {}, False
+    except Exception as e:
+        print(f"Error: Unexpected error for ask: {question[:50]}...: {e}", file=sys.stderr)
+        return {}, False
+
+
+def check_negative_evidence(
+    structured_data: Dict[str, Any],
+    forbidden_root_causes: List[str],
+    forbidden_failure_modes: List[str],
+    forbidden_components: List[str],
+    forbidden_incidents: List[str]
+) -> Tuple[bool, List[str]]:
+    """
+    Check if any forbidden items appear in the structured response.
+    
+    Returns:
+        (passed, violations) where violations is a list of violation messages
+    """
+    violations = []
+    
+    # Check forbidden incidents
+    for forbidden_incident in forbidden_incidents:
+        if forbidden_incident in structured_data.get("incident_ids", []):
+            violations.append(f"Forbidden incident '{forbidden_incident}' found in response")
+    
+    # Check forbidden components
+    for forbidden_comp in forbidden_components:
+        if forbidden_comp in structured_data.get("components", []):
+            violations.append(f"Forbidden component '{forbidden_comp}' found in response")
+    
+    # Check forbidden failure modes
+    for forbidden_fm in forbidden_failure_modes:
+        if forbidden_fm in structured_data.get("failure_modes", []):
+            violations.append(f"Forbidden failure_mode '{forbidden_fm}' found in response")
+    
+    # Check forbidden root causes
+    for forbidden_rc in forbidden_root_causes:
+        if forbidden_rc in structured_data.get("root_causes", []):
+            violations.append(f"Forbidden root_cause '{forbidden_rc}' found in response")
+    
+    return len(violations) == 0, violations
+
+
 def check_api_health(base_url: str) -> bool:
     """Check if API is reachable."""
     try:
@@ -103,16 +244,17 @@ def check_api_health(base_url: str) -> bool:
         return False
 
 
-def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int) -> Tuple[List[Dict[str, Any]], int, int]:
+def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int) -> Tuple[List[Dict[str, Any]], int, int, int]:
     """
     Evaluate queries against API.
     
     Returns:
-        (failures_list, correct_at_1_count, hits_at_k_count)
+        (failures_list, correct_at_1_count, hits_at_k_count, negative_evidence_failures_count)
     """
     failures = []
     correct_at_1 = 0
     hits_at_k = 0
+    negative_evidence_failures = 0
     
     # Check API health first
     if not check_api_health(base_url):
@@ -125,7 +267,20 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         query = item['query']
         expected_ids = [str(id) for id in item['expected_incident_ids']]
         
-        # Query API
+        # Get forbidden fields (backwards compatible - defaults to empty lists)
+        forbidden_root_causes = item.get('forbidden_root_causes', [])
+        forbidden_failure_modes = item.get('forbidden_failure_modes', [])
+        forbidden_components = item.get('forbidden_components', [])
+        forbidden_incidents = item.get('forbidden_incidents', [])
+        
+        has_forbidden_fields = (
+            len(forbidden_root_causes) > 0 or
+            len(forbidden_failure_modes) > 0 or
+            len(forbidden_components) > 0 or
+            len(forbidden_incidents) > 0
+        )
+        
+        # Query API for incident IDs (for existing metrics)
         predicted_ids, success = query_api(base_url, query)
         
         if not success:
@@ -139,23 +294,46 @@ def evaluate_queries(base_url: str, golden_queries: List[Dict[str, Any]], k: int
         top1_correct = len(predicted_ids) > 0 and predicted_ids[0] in expected_ids
         hit_at_k = any(pred_id in expected_ids for pred_id in top_k_predicted)
         
+        # Check negative evidence if forbidden fields are present
+        negative_checks_passed = True
+        negative_violations = []
+        if has_forbidden_fields:
+            structured_data, ask_success = query_ask_api(base_url, query)
+            if ask_success:
+                negative_checks_passed, negative_violations = check_negative_evidence(
+                    structured_data,
+                    forbidden_root_causes,
+                    forbidden_failure_modes,
+                    forbidden_components,
+                    forbidden_incidents
+                )
+            else:
+                # If /ask failed, we can't check negative evidence, so mark as failed
+                negative_checks_passed = False
+                negative_violations = ["Failed to query /ask endpoint for negative evidence check"]
+        
         # Update counters
         if top1_correct:
             correct_at_1 += 1
         if hit_at_k:
             hits_at_k += 1
+        if not negative_checks_passed:
+            negative_evidence_failures += 1
         
-        # Record failure if not correct
-        if not top1_correct or not hit_at_k:
-            failures.append({
+        # Record failure if not correct OR if negative evidence check failed
+        if not top1_correct or not hit_at_k or not negative_checks_passed:
+            failure_entry = {
                 "query": query,
                 "expected_incident_ids": expected_ids,
                 "predicted_incident_ids": predicted_ids,
                 "top1_correct": top1_correct,
-                "hit_at_k": hit_at_k
-            })
+                "hit_at_k": hit_at_k,
+                "negative_checks_passed": negative_checks_passed,
+                "negative_violations": negative_violations
+            }
+            failures.append(failure_entry)
     
-    return failures, correct_at_1, hits_at_k
+    return failures, correct_at_1, hits_at_k, negative_evidence_failures
 
 
 def write_results(output_file: str, base_url: str, k: int, n: int, 
@@ -179,7 +357,7 @@ def write_results(output_file: str, base_url: str, k: int, n: int,
         sys.exit(2)
 
 
-def print_summary(n: int, accuracy_at_1: float, recall_at_k: float, failures: List[Dict[str, Any]]):
+def print_summary(n: int, accuracy_at_1: float, recall_at_k: float, failures: List[Dict[str, Any]], negative_evidence_failures: int = 0):
     """Print evaluation summary and failures."""
     print("\n" + "=" * 60)
     print("Evaluation Summary")
@@ -187,7 +365,9 @@ def print_summary(n: int, accuracy_at_1: float, recall_at_k: float, failures: Li
     print(f"Total queries: {n}")
     print(f"Accuracy@1: {accuracy_at_1:.4f} ({accuracy_at_1 * 100:.2f}%)")
     print(f"Recall@k: {recall_at_k:.4f} ({recall_at_k * 100:.2f}%)")
-    print(f"Failures: {len(failures)}")
+    print(f"Retrieval failures: {len([f for f in failures if not f.get('top1_correct') or not f.get('hit_at_k')])}")
+    print(f"Negative-evidence failures: {negative_evidence_failures}")
+    print(f"Total failures: {len(failures)}")
     
     if failures:
         print("\nFirst up to 5 failures:")
@@ -197,8 +377,17 @@ def print_summary(n: int, accuracy_at_1: float, recall_at_k: float, failures: Li
             print(f"  Query: {failure['query']}")
             print(f"  Expected: {failure['expected_incident_ids']}")
             print(f"  Predicted: {failure['predicted_incident_ids']}")
-            print(f"  Top1 correct: {failure['top1_correct']}")
-            print(f"  Hit@k: {failure['hit_at_k']}")
+            if 'top1_correct' in failure:
+                print(f"  Top1 correct: {failure['top1_correct']}")
+            if 'hit_at_k' in failure:
+                print(f"  Hit@k: {failure['hit_at_k']}")
+            if 'negative_checks_passed' in failure and not failure.get('negative_checks_passed', True):
+                print(f"  Negative evidence check: FAILED")
+                if 'negative_violations' in failure:
+                    for violation in failure['negative_violations']:
+                        print(f"    - {violation}")
+            elif 'negative_checks_passed' in failure:
+                print(f"  Negative evidence check: PASSED")
     print("=" * 60)
 
 
@@ -226,7 +415,7 @@ def evaluate_single_file(base_url: str, gold_file: str, k: int) -> Tuple[str, Di
     n = len(golden_queries)
     
     # Evaluate queries
-    failures, correct_at_1, hits_at_k = evaluate_queries(base_url, golden_queries, k)
+    failures, correct_at_1, hits_at_k, negative_evidence_failures = evaluate_queries(base_url, golden_queries, k)
     
     # Calculate metrics
     accuracy_at_1 = correct_at_1 / n if n > 0 else 0.0
@@ -243,6 +432,7 @@ def evaluate_single_file(base_url: str, gold_file: str, k: int) -> Tuple[str, Di
         "n": n,
         "accuracy_at_1": accuracy_at_1,
         "recall_at_k": recall_at_k,
+        "negative_evidence_failures": negative_evidence_failures,
         "failures": failures
     }
     
@@ -348,7 +538,13 @@ def main():
         all_output_files.append(output_file)
         
         # Print summary for this file
-        print_summary(results['n'], results['accuracy_at_1'], results['recall_at_k'], results['failures'])
+        print_summary(
+            results['n'],
+            results['accuracy_at_1'],
+            results['recall_at_k'],
+            results['failures'],
+            results.get('negative_evidence_failures', 0)
+        )
     
     # Print combined summary if multiple files
     if len(gold_files) > 1:
