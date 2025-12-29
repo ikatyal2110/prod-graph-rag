@@ -1,0 +1,28 @@
+{
+  "created_at": "2025-12-29T07:02:01.565979Z",
+  "edge_count": 119,
+  "graph_version": "1.0.0",
+  "incident_count": 6,
+  "node_count": 105,
+  "node_type_counts": {
+    "artifact": 8,
+    "component": 9,
+    "concept": 65,
+    "failure_mode": 5,
+    "incident": 6,
+    "root_cause": 6,
+    "trigger": 6
+  },
+  "relationship_type_counts": {
+    "ACTIVATES": 5,
+    "AFFECTS": 7,
+    "CAUSED_BY": 6,
+    "DEPENDS_ON": 1,
+    "EXHIBITS": 6,
+    "INVOLVES": 65,
+    "LEADS_TO": 11,
+    "TRIGGERED_BY": 6,
+    "USES": 12
+  },
+  "sha256": "3383e34aa4b35c75078ef459b579c35407e745ddd51e9b7d129dfb16b26f20d3"
+}

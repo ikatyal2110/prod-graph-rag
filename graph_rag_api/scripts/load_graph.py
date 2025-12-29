@@ -34,6 +34,17 @@ except ImportError:
     print("Error: 'neo4j' library is required. Install with: pip install neo4j", file=sys.stderr)
     sys.exit(2)
 
+# Import validation module
+# Add repo root to path to import graph validation
+script_dir = Path(__file__).parent
+repo_root = script_dir.parent.parent
+sys.path.insert(0, str(repo_root))
+try:
+    from graph.validate_graph import validate_schema, validate_invariants
+except ImportError:
+    print("Error: Could not import graph validation module. Ensure graph/validate_graph.py exists.", file=sys.stderr)
+    sys.exit(2)
+
 
 def get_default_graph_file() -> Path:
     """Get default graph file path (complete_graph.json in repo root)."""
@@ -433,6 +444,49 @@ def main():
     print(f"\nGraph data loaded:")
     print(f"  Entities: {len(entities)}")
     print(f"  Edges: {len(edges)}")
+    
+    # Validate graph schema
+    print("\nValidating graph schema...")
+    schema_errors = validate_schema(graph_data)
+    if schema_errors:
+        print("  ✗ Schema validation failed:", file=sys.stderr)
+        for error in schema_errors:
+            print(f"    {error}", file=sys.stderr)
+        sys.exit(2)
+    print("  ✓ Schema validation passed")
+    
+    # Validate graph invariants
+    print("Validating graph invariants...")
+    invariant_errors = validate_invariants(graph_data)
+    if invariant_errors:
+        print("  ✗ Invariant validation failed:", file=sys.stderr)
+        for error in invariant_errors:
+            print(f"    {error}", file=sys.stderr)
+        sys.exit(2)
+    print("  ✓ Invariant validation passed")
+    
+    # Verify SHA256 hash matches metadata
+    print("Verifying graph hash against metadata...")
+    metadata_file = repo_root / "data" / "graph_metadata.json"
+    if metadata_file.exists():
+        try:
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            expected_hash = metadata.get('sha256')
+            if expected_hash and file_hash != expected_hash:
+                print(f"  ✗ Hash mismatch!", file=sys.stderr)
+                print(f"    Expected: {expected_hash}", file=sys.stderr)
+                print(f"    Computed: {file_hash}", file=sys.stderr)
+                print(f"    Run 'python scripts/update_graph_metadata.py' to update metadata.", file=sys.stderr)
+                sys.exit(2)
+            print(f"  ✓ Hash matches metadata ({file_hash[:16]}...)")
+        except Exception as e:
+            print(f"  ⚠ Could not verify hash against metadata: {e}", file=sys.stderr)
+            print(f"    Continuing anyway...", file=sys.stderr)
+    else:
+        print(f"  ⚠ Metadata file not found: {metadata_file}", file=sys.stderr)
+        print(f"    Run 'python scripts/update_graph_metadata.py' to generate metadata.", file=sys.stderr)
+        print(f"    Continuing anyway...", file=sys.stderr)
     
     # Build entity lookup for matching
     entity_lookup = build_entity_lookup(entities)

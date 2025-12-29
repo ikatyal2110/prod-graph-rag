@@ -286,6 +286,11 @@
       "attributes": {}
     },
     {
+      "id": "validation_error",
+      "type": "failure_mode",
+      "attributes": {}
+    },
+    {
       "id": "incorrect-lifecycle-state-handling",
       "type": "root_cause",
       "attributes": {
@@ -890,6 +895,11 @@
     },
     {
       "from": "135333",
+      "to": "validation_error",
+      "type": "EXHIBITS"
+    },
+    {
+      "from": "135333",
       "to": "validation-gaps",
       "type": "CAUSED_BY"
     },
@@ -932,6 +942,11 @@
       "from": "128709",
       "to": "kube-apiserver",
       "type": "AFFECTS"
+    },
+    {
+      "from": "128709",
+      "to": "validation_error",
+      "type": "EXHIBITS"
     },
     {
       "from": "128709",
