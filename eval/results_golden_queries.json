@@ -1,9 +1,0 @@
-{
-  "timestamp": "2025-12-28T20:57:24.355916Z",
-  "base_url": "http://127.0.0.1:8000",
-  "k": 5,
-  "n": 20,
-  "accuracy_at_1": 1.0,
-  "recall_at_k": 1.0,
-  "failures": []
-}
