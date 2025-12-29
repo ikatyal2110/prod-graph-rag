@@ -20,6 +20,7 @@ Environment variables:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -39,6 +40,19 @@ def get_default_graph_file() -> Path:
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent.parent
     return repo_root / "complete_graph.json"
+
+
+def compute_file_hash(graph_file: Path) -> str:
+    """Compute SHA256 hash of file contents."""
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(graph_file, 'rb') as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+    except Exception as e:
+        print(f"Warning: Could not compute file hash: {e}", file=sys.stderr)
+        return "unknown"
 
 
 def load_graph_data(graph_file: Path) -> Dict[str, Any]:
@@ -386,9 +400,15 @@ def main():
     
     # Determine graph file path
     if args.graph_file:
-        graph_file = args.graph_file
+        graph_file = Path(args.graph_file)
     else:
         graph_file = get_default_graph_file()
+    
+    # Resolve to absolute path
+    graph_file = graph_file.resolve()
+    
+    # Compute SHA256 hash of the graph file
+    file_hash = compute_file_hash(graph_file)
     
     # Get Neo4j connection details from environment
     neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
@@ -400,6 +420,7 @@ def main():
     print("GraphRAG Graph Loader")
     print("=" * 70)
     print(f"Graph file: {graph_file}")
+    print(f"SHA256 hash: {file_hash}")
     print(f"Neo4j URI: {neo4j_uri}")
     print(f"Neo4j DB: {neo4j_db}")
     print("=" * 70)
