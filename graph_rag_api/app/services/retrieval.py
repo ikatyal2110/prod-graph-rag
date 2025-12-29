@@ -481,7 +481,7 @@ class RetrievalService:
                 MATCH (i:Entity {type:"incident"})
                 MATCH (i)-[r:RELATIONSHIP]->(a:Entity)
                 WHERE a.id IN $anchor_ids
-                RETURN i.id AS incident_id, a.id AS anchor_id, r.type AS rel_type
+                RETURN DISTINCT i.id AS incident_id, a.id AS anchor_id, r.type AS rel_type
                 """
                 
                 result = session.run(incident_query_1hop, anchor_ids=anchor_ids)
@@ -590,8 +590,14 @@ class RetrievalService:
                 # Sort by score desc, tie-break by number of matched anchors desc
                 candidate_incidents.sort(key=lambda x: (x['score'], x['num_matched']), reverse=True)
                 
-                # Select top max_incidents
-                selected_incidents = [inc['id'] for inc in candidate_incidents[:max_incidents]]
+                # Select top max_incidents (deduplicate to be safe)
+                selected_incidents = []
+                seen_incident_ids = set()
+                for inc in candidate_incidents[:max_incidents]:
+                    inc_id = inc['id']
+                    if inc_id not in seen_incident_ids:
+                        seen_incident_ids.add(inc_id)
+                        selected_incidents.append(inc_id)
                 
                 logger.info(
                     f"Selected {len(selected_incidents)} incidents: {selected_incidents} "
@@ -619,7 +625,7 @@ class RetrievalService:
                     WHERE i.id IN $incident_ids
                     MATCH (i)-[r:RELATIONSHIP]->(t:Entity)
                     WHERE r.type IN $allowed_types
-                    RETURN i.id AS from_id, r.type AS rel_type, t.id AS to_id
+                    RETURN DISTINCT i.id AS from_id, r.type AS rel_type, t.id AS to_id
                     """
                     
                     result = session.run(
@@ -637,20 +643,41 @@ class RetrievalService:
                             "to": record["to_id"]
                         })
                     
-                    # Order facts by priority edge types
-                    priority_order = [
+                    # Deduplicate facts at Python level (fallback for duplicate edges in DB)
+                    # Canonical order for deterministic sorting
+                    canonical_rel_order = [
                         'AFFECTS', 'EXHIBITS', 'CAUSED_BY', 'TRIGGERED_BY',
-                        'USES', 'LEADS_TO', 'DEPENDS_ON', 'INVOLVES'
+                        'INVOLVES', 'USES'
                     ]
                     
-                    def fact_priority(fact):
-                        rel_type = fact['rel']
+                    def get_rel_order_index(rel_type: str) -> int:
+                        """Get order index for relationship type."""
                         try:
-                            return priority_order.index(rel_type)
+                            return canonical_rel_order.index(rel_type)
                         except ValueError:
-                            return len(priority_order)  # Put unknown types last
+                            # Unknown rels after canonical ones, sorted lexicographically
+                            return len(canonical_rel_order)
                     
-                    relationships = sorted(facts_list, key=fact_priority)
+                    def fact_sort_key(fact: Dict[str, str]) -> Tuple[str, int, str]:
+                        """Sort key for deterministic fact ordering: (from, rel_order_index, to)."""
+                        rel_type = fact['rel']
+                        rel_index = get_rel_order_index(rel_type)
+                        # For unknown rels, use lexicographic order after canonical ones
+                        if rel_index == len(canonical_rel_order):
+                            return (fact['from'], rel_index, rel_type, fact['to'])
+                        return (fact['from'], rel_index, fact['to'])
+                    
+                    # Deduplicate by (from, rel, to) tuple, preserving deterministic order
+                    seen_facts = set()
+                    deduplicated_facts = []
+                    for fact in facts_list:
+                        fact_key = (fact['from'], fact['rel'], fact['to'])
+                        if fact_key not in seen_facts:
+                            seen_facts.add(fact_key)
+                            deduplicated_facts.append(fact)
+                    
+                    # Sort deterministically
+                    relationships = sorted(deduplicated_facts, key=fact_sort_key)
                     
                     logger.info(
                         f"Built {len(relationships)} facts from {len(selected_incidents)} incidents"
@@ -762,7 +789,9 @@ class RetrievalService:
         )
         
         # Step 4: Create evidence
-        evidence = Evidence(incident_ids=sorted(incident_ids))
+        # Deduplicate and sort incident_ids deterministically
+        unique_incident_ids = sorted(list(set(incident_ids)))
+        evidence = Evidence(incident_ids=unique_incident_ids)
         
         # Step 5: Combine debug info
         debug_info = None
