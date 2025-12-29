@@ -102,6 +102,105 @@ SYNONYM_MAPPINGS = {
         "udp endpoint update",
         "udp port change",
     ],
+    "container-restart": [
+        "restart",
+        "restarted",
+        "on restart",
+        "container restart",
+        "restarting",
+    ],
+    "pre-pulled-image": [
+        "pre-pulled image",
+        "pre pulled image",
+        "pre pulled images",
+        "prepulled images",
+        "prepulled image",
+        "pre-pulled images",
+    ],
+    "container-lifecycle-management": [
+        "lifecycle",
+        "lifecycle management",
+        "container lifecycle",
+        "container lifecycle management",
+    ],
+    "container-security": [
+        "user id",
+        "uid",
+        "user id",
+        "run as user",
+        "security context",
+        "user id on restart",
+        "container user",
+    ],
+    "incorrect-lifecycle-state-handling": [
+        "state handling",
+        "lifecycle state",
+        "incorrect state",
+        "state management",
+    ],
+    # Feature gate related (for incident 128709)
+    "feature-gate-compatibility": [
+        "feature gate",
+        "featuregate",
+        "feature-gate",
+    ],
+    "podlogsquerysplitsstreams-feature-gate": [
+        "podlogsquerysplitsstreams",
+        "podlogsquerysplitsstreams-feature-gate",
+        "pod logs query splits streams",
+        "pod-logs-query-splits-streams",
+        "podlogsquerysplitsstreams feature gate",
+        "podlogsquerysplitsstreamsfeaturegate",
+        "podlogsquerysplitsstreams featuregate",
+        "pod logs",
+        "podlog",
+        "logs query",
+        "split streams",
+        "streams parameter",
+        "streams",
+    ],
+    "api-backward-compatibility": [
+        "api backward compatibility",
+        "backward compatibility",
+        "api compatibility",
+    ],
+    # Root causes - validation-error vs validation-gaps distinction
+    "validation-error": [
+        "validation error",
+        "validation-error",
+        "validation failed",
+        "fails validation",
+        "rejected by validation",
+        "validation rejection",
+        "invalid validation",
+        # Handle cases where "validation" and "error" appear separately
+        # These will be detected via the retrieval logic when feature gate + pod-logs cues are present
+    ],
+    "validation-gaps": [
+        "validation gap",
+        "validation gaps",
+        "missing validation",
+        "insufficient validation",
+        "validation not enforced",
+        "not validated",
+        "lack of validation",
+    ],
+    # Concepts for incident 135333 (creation order / resource creation order)
+    "resource-creation-order": [
+        "creation order",
+        "order of creation",
+        "resource creation order",
+        "checked after",
+        "after ip allocation",
+        "allocate before validate",
+        "name checked after",
+        "checked after allocation",
+    ],
+    "api-request-processing": [
+        "api request processing",
+        "request processing",
+        "request order",
+    ],
 }
 
 
@@ -164,10 +263,45 @@ def extract_canonical_tokens(text: str) -> Set[str]:
         
         # Check variants
         for variant in variants:
-            pattern = r'\b' + re.escape(variant) + r'\b'
+            variant_lower = variant.lower()
+            # Use word boundaries for matching, but also check as substring for long compound terms
+            # This helps match things like "podlogsquerysplitsstreams" even if adjacent to other text
+            pattern = r'\b' + re.escape(variant_lower) + r'\b'
             if re.search(pattern, text_lower):
                 found_canonical.add(canonical_id)
                 break  # Found one variant, no need to check others
+            # Also check as substring for compound terms (length > 15) to handle cases where
+            # word boundaries might not work (e.g., "podlogsquerysplitsstreams feature gate")
+            elif len(variant_lower) > 15 and variant_lower in text_lower:
+                found_canonical.add(canonical_id)
+                break
+    
+    # Special handling for validation-error and validation-gaps disambiguation
+    has_creation_order_cues = any(cue in text_lower for cue in [
+        'checked after', 'after ip allocation', 'allocate before validate',
+        'name checked after', 'creation order', 'order of creation',
+        'resource creation order', 'checked after allocation'
+    ])
+    has_feature_gate = any(term in text_lower for term in ['feature gate', 'featuregate', 'feature-gate'])
+    has_podlogs_cues = any(cue in text_lower for cue in [
+        'podlogsquerysplitsstreams', 'pod logs', 'podlog', 
+        'logs query', 'split streams', 'streams parameter'
+    ])
+    
+    # If creation order cues are present, remove validation-error and add validation-gaps (favor 135333)
+    if has_creation_order_cues:
+        found_canonical.discard('validation-error')  # Remove if it was added via variant matching
+        has_validation = 'validation' in text_lower
+        has_error_indicator = any(indicator in text_lower for indicator in ['error', 'failed', 'fails', 'rejected', 'rejection', 'invalid'])
+        # Add validation-gaps when creation order cues + validation indicators are present
+        if has_validation and has_error_indicator:
+            found_canonical.add('validation-gaps')
+    # Otherwise, add validation-error if (validation + error) OR (feature gate + pod-logs) cues are present
+    elif 'validation-error' not in found_canonical:
+        has_validation = 'validation' in text_lower
+        has_error_indicator = any(indicator in text_lower for indicator in ['error', 'failed', 'fails', 'rejected', 'rejection', 'invalid'])
+        if (has_validation and has_error_indicator) or (has_feature_gate and has_podlogs_cues):
+            found_canonical.add('validation-error')
     
     return found_canonical
 

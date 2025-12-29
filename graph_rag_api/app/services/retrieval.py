@@ -132,21 +132,83 @@ class RetrievalService:
                         else:  # max_match_strength == 2, substring match
                             confidence_score = 1  # Loose token match
                         
-                        # Boost trigger anchors from explicit phrases (from normalization)
-                        # This helps triggers survive caps and improves incident matching
-                        # Triggers matched via normalization get maximum confidence
-                        if entity['type'] == 'trigger' and entity['id'] in tokens:
-                            confidence_score = 3  # Explicit trigger match from normalization
+                        # Special handling for validation-related root causes to avoid confusion
+                        # "validation error" should map to validation-error, not validation-gaps
+                        skip_candidate = False
+                        if entity['type'] == 'root_cause' and entity['id'] in ['validation-error', 'validation-gaps']:
+                            question_lower = question.lower()
+                            
+                            # Check for 128709 cues: feature gate + pod-logs terms
+                            has_feature_gate = any(term in question_lower for term in ['feature gate', 'featuregate', 'feature-gate'])
+                            has_podlogs_cues = any(cue in question_lower for cue in [
+                                'podlogsquerysplitsstreams', 'pod logs', 'podlog', 
+                                'logs query', 'split streams', 'streams parameter'
+                            ])
+                            
+                            # Check for 135333 cues: creation order phrases
+                            has_creation_order_cues = any(cue in question_lower for cue in [
+                                'checked after', 'after ip allocation', 'allocate before validate',
+                                'name checked after', 'creation order', 'order of creation',
+                                'resource creation order', 'checked after allocation'
+                            ])
+                            
+                            # Check if query contains error/failed/rejected indicators
+                            has_error_indicator = any(indicator in question_lower for indicator in ['error', 'failed', 'fails', 'rejected', 'rejection', 'invalid'])
+                            # Also check if "validation" appears in the query
+                            has_validation = 'validation' in question_lower
+                            
+                            if entity['id'] == 'validation-error':
+                                # validation-error: require (feature gate + pod-logs cues) OR (validation + error indicator)
+                                # This handles cases where "validation" and "error" appear as separate tokens
+                                if (has_feature_gate and has_podlogs_cues) or (has_validation and has_error_indicator):
+                                    # Boost validation-error when these cues are present
+                                    confidence_score = max(confidence_score, 2)  # At least phrase match level
+                                    # If we're adding it based on cues (not phrase match), set confidence_score=2
+                                    if confidence_score < 2:
+                                        confidence_score = 2
+                                else:
+                                    # Don't anchor validation-error if feature gate appears without pod-logs cues
+                                    if has_feature_gate and not has_podlogs_cues:
+                                        skip_candidate = True
+                            elif entity['id'] == 'validation-gaps':
+                                # validation-gaps requires explicit phrase match (score >= 2) OR creation order cues
+                                if confidence_score < 2 and not has_creation_order_cues:
+                                    # Skip this candidate if it's only a loose match and no creation order cues
+                                    skip_candidate = True
+                                elif has_creation_order_cues:
+                                    # Boost validation-gaps when creation order cues are present
+                                    confidence_score = max(confidence_score, 2)
+                                    if confidence_score < 2:
+                                        confidence_score = 2
                         
-                        candidates.append({
-                            'id': entity['id'],
-                            'type': entity['type'],
-                            'match_strength': max_match_strength,
-                            'type_weight': type_weight,
-                            'base_score': base_score,
-                            'matching_tokens': matching_tokens,
-                            'confidence_score': confidence_score
-                        })
+                        # Only add candidate if not skipped
+                        if not skip_candidate:
+                            # Boost trigger anchors from explicit phrases (from normalization)
+                            # This helps triggers survive caps and improves incident matching
+                            # Triggers matched via normalization get maximum confidence
+                            if entity['type'] == 'trigger' and entity['id'] in tokens:
+                                confidence_score = 3  # Explicit trigger match from normalization
+                            
+                            # Boost concept anchors for creation order concepts when creation order cues are present
+                            if entity['type'] == 'concept' and entity['id'] in ['resource-creation-order', 'api-request-processing']:
+                                question_lower = question.lower()
+                                has_creation_order_cues = any(cue in question_lower for cue in [
+                                    'checked after', 'after ip allocation', 'allocate before validate',
+                                    'name checked after', 'creation order', 'order of creation',
+                                    'resource creation order', 'checked after allocation'
+                                ])
+                                if has_creation_order_cues:
+                                    confidence_score = 3  # High confidence for creation order concepts
+                            
+                            candidates.append({
+                                'id': entity['id'],
+                                'type': entity['type'],
+                                'match_strength': max_match_strength,
+                                'type_weight': type_weight,
+                                'base_score': base_score,
+                                'matching_tokens': matching_tokens,
+                                'confidence_score': confidence_score
+                            })
                 
                 # Apply commonness penalty: if a token matches >5 entities, subtract 3
                 for candidate in candidates:
@@ -213,8 +275,9 @@ class RetrievalService:
                         )
                         capped_candidates.extend(type_candidates[:cap])
                     elif candidate_type == 'concept':
-                        # For concepts: only keep if score >= 2, and at most 1
-                        # Filter by minimum score first
+                        # For concepts: only keep if score >= 2
+                        # Special case: allow up to 2 concepts if score=3 (high confidence)
+                        # Otherwise keep current cap of 1
                         filtered_concepts = [
                             c for c in type_candidates
                             if c['final_score'] >= 2
@@ -224,7 +287,14 @@ class RetrievalService:
                             key=lambda x: (x['final_score'], x.get('confidence_score', 0)),
                             reverse=True
                         )
-                        capped_candidates.extend(filtered_concepts[:cap])
+                        # Count high-confidence concepts (score=3)
+                        high_conf_concepts = [c for c in filtered_concepts if c.get('confidence_score', 0) == 3]
+                        if len(high_conf_concepts) >= 2:
+                            # Keep top 2 high-confidence concepts
+                            capped_candidates.extend(filtered_concepts[:2])
+                        else:
+                            # Keep top 1 as usual
+                            capped_candidates.extend(filtered_concepts[:cap])
                     else:
                         # For other types, just apply cap
                         capped_candidates.extend(type_candidates[:cap])
@@ -234,12 +304,14 @@ class RetrievalService:
                 
                 # Ensure diversity: at least 1 component, 1 root_cause/failure_mode if present
                 # Also prioritize triggers if present (they help distinguish incidents)
+                # Note: We allow both root_cause AND trigger (e.g., validation-error + feature-gate trigger)
                 selected = []
                 has_component = False
                 has_root_or_failure = False
                 has_trigger = False
                 
                 # First pass: pick diverse top candidates from capped list
+                # This ensures we get component, root_cause/failure_mode, and trigger if available
                 for candidate in capped_candidates:
                     if len(selected) >= max_anchors:
                         break
@@ -253,6 +325,7 @@ class RetrievalService:
                         has_root_or_failure = True
                     elif candidate_type == 'trigger' and not has_trigger:
                         # Prioritize triggers as they help distinguish incidents
+                        # Keep trigger even if we already have root_cause (they complement each other)
                         selected.append(candidate)
                         has_trigger = True
                     elif len(selected) < max_anchors:

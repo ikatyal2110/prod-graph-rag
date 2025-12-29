@@ -32,6 +32,7 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+eval/results*.json
 
 # OS
 .DS_Store
