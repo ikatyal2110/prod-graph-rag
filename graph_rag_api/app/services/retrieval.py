@@ -117,13 +117,35 @@ class RetrievalService:
                         type_weight = type_weights.get(entity['type'], 0)
                         base_score = max_match_strength + type_weight
                         
+                        # Compute confidence score based on match type
+                        # Exact canonical match (entity ID matches a normalized canonical ID): score = 3
+                        # Phrase/synonym match (exact match or prefix): score = 2
+                        # Loose token match (substring): score = 1
+                        if max_match_strength == 10:  # Exact match
+                            # Check if this is a canonical ID from normalization
+                            if entity['id'] in tokens:
+                                confidence_score = 3  # Exact canonical match
+                            else:
+                                confidence_score = 2  # Phrase/synonym match
+                        elif max_match_strength == 6:  # Prefix match
+                            confidence_score = 2  # Phrase/synonym match
+                        else:  # max_match_strength == 2, substring match
+                            confidence_score = 1  # Loose token match
+                        
+                        # Boost trigger anchors from explicit phrases (from normalization)
+                        # This helps triggers survive caps and improves incident matching
+                        # Triggers matched via normalization get maximum confidence
+                        if entity['type'] == 'trigger' and entity['id'] in tokens:
+                            confidence_score = 3  # Explicit trigger match from normalization
+                        
                         candidates.append({
                             'id': entity['id'],
                             'type': entity['type'],
                             'match_strength': max_match_strength,
                             'type_weight': type_weight,
                             'base_score': base_score,
-                            'matching_tokens': matching_tokens
+                            'matching_tokens': matching_tokens,
+                            'confidence_score': confidence_score
                         })
                 
                 # Apply commonness penalty: if a token matches >5 entities, subtract 3
@@ -135,16 +157,90 @@ class RetrievalService:
                     candidate['commonness_penalty'] = penalty
                     candidate['final_score'] = candidate['base_score'] - penalty
                 
-                # Sort by final score
-                candidates.sort(key=lambda x: x['final_score'], reverse=True)
+                # Sort by final score (primary) and confidence_score (secondary) descending
+                candidates.sort(key=lambda x: (x['final_score'], x.get('confidence_score', 0)), reverse=True)
+                
+                # Apply per-type caps BEFORE diversity selection
+                # Keep top 1 of each type based on final_score + confidence_score
+                type_caps = {
+                    'component': 1,
+                    'failure_mode': 1,
+                    'root_cause': 1,
+                    'trigger': 1,  # Cap triggers to 1
+                    'concept': 1,  # Cap concepts to 1
+                }
+                
+                # Failure mode specificity order (higher = more specific)
+                # Used as tiebreaker when scores are equal or close
+                failure_mode_specificity = {
+                    'oom': 4,
+                    'panic': 3,
+                    'crash': 2,
+                    'degradation': 1,
+                }
+                
+                # Group candidates by type and apply caps
+                candidates_by_type = {}
+                for candidate in candidates:
+                    candidate_type = candidate['type']
+                    if candidate_type not in candidates_by_type:
+                        candidates_by_type[candidate_type] = []
+                    candidates_by_type[candidate_type].append(candidate)
+                
+                # Apply caps per type with type-specific logic
+                capped_candidates = []
+                for candidate_type, type_candidates in candidates_by_type.items():
+                    cap = type_caps.get(candidate_type, len(type_candidates))  # No cap for other types
+                    
+                    if candidate_type == 'failure_mode':
+                        # For failure modes, use specificity as tiebreaker
+                        # Sort by (final_score, confidence_score, specificity) descending
+                        type_candidates.sort(
+                            key=lambda x: (
+                                x['final_score'],
+                                x.get('confidence_score', 0),
+                                failure_mode_specificity.get(x['id'].lower(), 0)
+                            ),
+                            reverse=True
+                        )
+                        capped_candidates.extend(type_candidates[:cap])
+                    elif candidate_type == 'trigger':
+                        # For triggers: boost explicit matches, then apply cap
+                        # Sort by (final_score, confidence_score) descending
+                        type_candidates.sort(
+                            key=lambda x: (x['final_score'], x.get('confidence_score', 0)),
+                            reverse=True
+                        )
+                        capped_candidates.extend(type_candidates[:cap])
+                    elif candidate_type == 'concept':
+                        # For concepts: only keep if score >= 2, and at most 1
+                        # Filter by minimum score first
+                        filtered_concepts = [
+                            c for c in type_candidates
+                            if c['final_score'] >= 2
+                        ]
+                        # Sort by (final_score, confidence_score) descending
+                        filtered_concepts.sort(
+                            key=lambda x: (x['final_score'], x.get('confidence_score', 0)),
+                            reverse=True
+                        )
+                        capped_candidates.extend(filtered_concepts[:cap])
+                    else:
+                        # For other types, just apply cap
+                        capped_candidates.extend(type_candidates[:cap])
+                
+                # Re-sort capped candidates by final_score + confidence_score
+                capped_candidates.sort(key=lambda x: (x['final_score'], x.get('confidence_score', 0)), reverse=True)
                 
                 # Ensure diversity: at least 1 component, 1 root_cause/failure_mode if present
+                # Also prioritize triggers if present (they help distinguish incidents)
                 selected = []
                 has_component = False
                 has_root_or_failure = False
+                has_trigger = False
                 
-                # First pass: pick diverse top candidates
-                for candidate in candidates:
+                # First pass: pick diverse top candidates from capped list
+                for candidate in capped_candidates:
                     if len(selected) >= max_anchors:
                         break
                     
@@ -155,13 +251,45 @@ class RetrievalService:
                     elif candidate_type in ['root_cause', 'failure_mode'] and not has_root_or_failure:
                         selected.append(candidate)
                         has_root_or_failure = True
+                    elif candidate_type == 'trigger' and not has_trigger:
+                        # Prioritize triggers as they help distinguish incidents
+                        selected.append(candidate)
+                        has_trigger = True
                     elif len(selected) < max_anchors:
                         # Check if we already have this one
                         if candidate['id'] not in [s['id'] for s in selected]:
                             selected.append(candidate)
                 
-                # Sort selected anchors deterministically (by type, then by id)
-                selected.sort(key=lambda x: (x['type'], x['id']))
+                # Safety: if we have no anchors after caps, fall back to top candidates without caps
+                # This ensures we never return anchors=[]
+                if len(selected) == 0:
+                    logger.warning("No anchors selected after caps, falling back to top candidates")
+                    # Fall back to original diversity selection without caps
+                    for candidate in candidates:
+                        if len(selected) >= max_anchors:
+                            break
+                        candidate_type = candidate['type']
+                        if candidate_type == 'component' and not has_component:
+                            selected.append(candidate)
+                            has_component = True
+                        elif candidate_type in ['root_cause', 'failure_mode'] and not has_root_or_failure:
+                            selected.append(candidate)
+                            has_root_or_failure = True
+                        elif len(selected) < max_anchors:
+                            if candidate['id'] not in [s['id'] for s in selected]:
+                                selected.append(candidate)
+                
+                # Deduplicate selected anchors (by id) and sort deterministically
+                seen_ids = set()
+                deduped_selected = []
+                for candidate in selected:
+                    if candidate['id'] not in seen_ids:
+                        deduped_selected.append(candidate)
+                        seen_ids.add(candidate['id'])
+                
+                # Sort deterministically (by type, then by id)
+                deduped_selected.sort(key=lambda x: (x['type'], x['id']))
+                selected = deduped_selected
                 
                 # Convert to Anchor objects
                 anchors = [Anchor(id=c['id'], type=c['type']) for c in selected]
@@ -176,6 +304,7 @@ class RetrievalService:
                                 'id': c['id'],
                                 'type': c['type'],
                                 'score': c['final_score'],
+                                'confidence_score': c.get('confidence_score', 0),
                                 'match_strength': c['match_strength'],
                                 'type_weight': c['type_weight'],
                                 'penalty': c['commonness_penalty']

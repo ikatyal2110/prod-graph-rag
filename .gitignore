@@ -1,3 +1,6 @@
 # Evaluation results
 eval/results.json
 
+
+# eval outputs
+eval/results*.json
