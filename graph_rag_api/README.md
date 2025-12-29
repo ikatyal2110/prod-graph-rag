@@ -109,6 +109,33 @@ The API will be available at `http://localhost:8000`
 
 Interactive API documentation: `http://localhost:8000/docs`
 
+## CI Eval Gate
+
+This repository includes a GitHub Actions CI workflow (`.github/workflows/eval.yml`) that runs on every pull request to `main` and every push to `main`. The workflow:
+
+1. **Spins up Neo4j**: Uses a Neo4j 5 service container
+2. **Loads the graph**: Runs `scripts/load_graph.py` to load `complete_graph.json` into Neo4j
+3. **Starts the API**: Launches the FastAPI server
+4. **Runs evaluations**: Executes both eval sets:
+   - `eval/golden_queries.jsonl`
+   - `eval/golden_queries_hard.jsonl`
+5. **Fails on regression**: If either eval set fails (any query doesn't match expected incident IDs), the workflow fails and blocks the PR
+
+**PRs must keep eval green** - any retrieval regression will cause the CI to fail. This ensures that changes to retrieval logic, normalization, or anchor filtering don't degrade retrieval accuracy.
+
+To run the eval locally (requires Neo4j running):
+```bash
+# Load graph
+python graph_rag_api/scripts/load_graph.py
+
+# Start API (in another terminal)
+uvicorn graph_rag_api.app.main:app --port 8000
+
+# Run eval
+python eval/run_eval.py --gold eval/golden_queries.jsonl --k 5
+python eval/run_eval.py --gold eval/golden_queries_hard.jsonl --k 5
+```
+
 ## API Endpoints
 
 ### POST /explain
