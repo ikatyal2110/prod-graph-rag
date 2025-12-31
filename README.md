@@ -107,6 +107,48 @@ This prevents silent data corruption: graph changes are detected by hash mismatc
 
 ## System Architecture
 
+### Architecture Diagram
+
+```mermaid
+flowchart TD
+    User[User]
+    FastAPI[FastAPI API<br/>/query, /explain, /ask]
+    Retrieval[Retrieval Service<br/>anchors → traversal → scoring → facts]
+    Neo4j[(Neo4j Graph DB<br/>entities + relationships + evidence_refs)]
+    GraphArtifact[Graph Artifact<br/>complete_graph.json + sources]
+    GraphMetadata[Graph Metadata<br/>graph_metadata.json + SHA256]
+    GraphValidation[Graph Validation<br/>schema + invariants]
+    Loader[Loader<br/>deterministic load into Neo4j]
+    EvalHarness[Eval Harness<br/>golden queries + negative-evidence + provenance + format checks]
+    CIGate[CI Gate<br/>GitHub Actions]
+    
+    GraphArtifact --> GraphValidation
+    GraphMetadata --> GraphValidation
+    GraphValidation -->|Hash lock| Loader
+    Loader --> Neo4j
+    
+    User --> FastAPI
+    FastAPI --> Retrieval
+    Retrieval --> Neo4j
+    Neo4j --> Retrieval
+    Retrieval --> FastAPI
+    FastAPI -->|No citation, no claim<br/>Tier 1 vs Tier 2| User
+    
+    EvalHarness --> FastAPI
+    CIGate --> Neo4j
+    CIGate --> Loader
+    CIGate --> EvalHarness
+    EvalHarness -.->|Negative evidence + provenance + format| CIGate
+    
+    style GraphValidation fill:#e1f5ff
+    style Loader fill:#e1f5ff
+    style FastAPI fill:#fff4e1
+    style Retrieval fill:#fff4e1
+    style Neo4j fill:#e8f5e9
+    style EvalHarness fill:#fce4ec
+    style CIGate fill:#fce4ec
+```
+
 The system follows a deterministic pipeline:
 
 1. **FastAPI API**: REST API with `/query`, `/explain`, and `/ask` endpoints.
