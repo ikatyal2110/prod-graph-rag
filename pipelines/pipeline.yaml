@@ -1,0 +1,178 @@
+# PIPELINE DEFINITION
+# Name: graphrag-validation-pipeline
+# Description: Validate, update metadata, load, and gate graph artifact
+components:
+  comp-eval-op:
+    executorLabel: exec-eval-op
+  comp-load-graph-op:
+    executorLabel: exec-load-graph-op
+  comp-update-metadata-op:
+    executorLabel: exec-update-metadata-op
+  comp-validate-graph-op:
+    executorLabel: exec-validate-graph-op
+deploymentSpec:
+  executors:
+    exec-eval-op:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - eval_op
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef eval_op():\n    \"\"\"Run evaluation gate (placeholder).\"\"\"\
+          \n    print(\"TODO: run eval gate\")\n\n"
+        image: python:3.11-slim
+    exec-load-graph-op:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - load_graph_op
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef load_graph_op():\n    \"\"\"Load graph into Neo4j (placeholder).\"\
+          \"\"\n    print(\"TODO: load graph into Neo4j\")\n\n"
+        image: python:3.11-slim
+    exec-update-metadata-op:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - update_metadata_op
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef update_metadata_op():\n    \"\"\"Update/verify graph metadata.\"\
+          \"\"\n    import subprocess\n    import sys\n\n    result = subprocess.run(\n\
+          \        [\"python\", \"/workspace/pipelines/components/update_metadata.py\"\
+          ],\n        cwd=\"/workspace\",\n    )\n    sys.exit(result.returncode)\n\
+          \n"
+        image: python:3.11-slim
+    exec-validate-graph-op:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - validate_graph_op
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef validate_graph_op():\n    \"\"\"Validate graph schema and invariants.\"\
+          \"\"\n    import subprocess\n    import sys\n\n    result = subprocess.run(\n\
+          \        [\"python\", \"/workspace/pipelines/components/validate_graph.py\"\
+          ],\n        cwd=\"/workspace\",\n    )\n    sys.exit(result.returncode)\n\
+          \n"
+        image: python:3.11-slim
+pipelineInfo:
+  description: Validate, update metadata, load, and gate graph artifact
+  name: graphrag-validation-pipeline
+root:
+  dag:
+    tasks:
+      eval-op:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-eval-op
+        dependentTasks:
+        - load-graph-op
+        taskInfo:
+          name: eval-op
+      load-graph-op:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-load-graph-op
+        dependentTasks:
+        - update-metadata-op
+        taskInfo:
+          name: load-graph-op
+      update-metadata-op:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-update-metadata-op
+        dependentTasks:
+        - validate-graph-op
+        taskInfo:
+          name: update-metadata-op
+      validate-graph-op:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-validate-graph-op
+        taskInfo:
+          name: validate-graph-op
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.15.2

@@ -285,6 +285,10 @@ python scripts/update_graph_metadata.py --check
 - Metadata generation and versioning
 - Integration with ML metadata store
 
+### Kubeflow Pipelines (Phase 2)
+
+A minimal pipeline skeleton exists in `pipelines/` that demonstrates the intended orchestration flow: validate graph → update metadata → load graph → eval gate. The pipeline uses Kubeflow Pipelines v2 (KFP v2) and compiles to YAML for deployment. Current components are placeholders; the pipeline will gate on validation failures and evaluation regressions, preventing invalid graph artifacts from being loaded. This is scaffold only; existing API behavior is unchanged.
+
 **Phase 3 (Optional)**: Hybrid vector + graph retrieval.
 - Vector embeddings for semantic similarity and recall expansion
 - Graph structure remains the authoritative grounding layer for causal correctness
