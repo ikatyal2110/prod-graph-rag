@@ -5,5 +5,10 @@ eval/results.json
 # eval outputs
 eval/results*.json
 
+# Interview notes (not for public repo)
+INTERVIEW_NOTES.md
+
 echo "__pycache__/" >> .gitignore
 
+
+.env

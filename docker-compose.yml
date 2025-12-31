@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5
+    container_name: prod-graph-rag-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/testpassword
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "testpassword", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: graph_rag_api/Dockerfile
+    container_name: prod-graph-rag-api
+    ports:
+      - "8000:8000"
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=testpassword
+      - NEO4J_DB=neo4j
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        echo 'Waiting for Neo4j to be ready...' &&
+        until python -c 'from neo4j import GraphDatabase; driver = GraphDatabase.driver(\"bolt://neo4j:7687\", auth=(\"neo4j\", \"testpassword\")); driver.verify_connectivity(); driver.close()' 2>/dev/null; do
+          echo 'Neo4j not ready, retrying in 2 seconds...'
+          sleep 2
+        done &&
+        echo 'Neo4j is ready, starting API...' &&
+        cd /app/graph_rag_api &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+

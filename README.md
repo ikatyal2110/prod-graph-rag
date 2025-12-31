@@ -164,7 +164,39 @@ There is no LLM dependency in the current implementation. All retrieval, ranking
 
 ## How to Run Locally
 
-### Prerequisites
+### Quickstart (Docker)
+
+The fastest way to get started:
+
+```bash
+# Ensure Docker Desktop is running
+
+# Copy environment variables
+cp .env.example .env
+
+# Start Neo4j and API services
+make up
+
+# Load the graph into Neo4j
+make load
+
+# Run evaluations
+make eval-docker
+```
+
+This will start Neo4j and the API in Docker containers, load the graph, and run both eval sets. The API will be available at `http://localhost:8000`.
+
+Additional Makefile targets:
+- `make down`: Stop services and remove volumes
+- `make smoke`: Quick health check and test query (against local API)
+- `make smoke-docker`: Quick health check and test query (against containerized API)
+- `make eval`: Run evals against local API (default http://127.0.0.1:8000)
+- `make eval-docker`: Run evals against containerized API (ensures services are up)
+- `make clean`: Remove all containers and volumes
+
+### Manual Setup
+
+#### Prerequisites
 
 - Python 3.11+
 - Neo4j 5.x (Docker or local installation)
