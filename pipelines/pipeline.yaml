@@ -1,9 +1,17 @@
 # PIPELINE DEFINITION
 # Name: graphrag-validation-pipeline
-# Description: Validate, update metadata, load, and gate graph artifact
+# Description: Validate, update metadata, eval gate graph artifact
+# Inputs:
+#    api_base_url: str [Default: 'http://127.0.0.1:8000']
 components:
-  comp-eval-op:
-    executorLabel: exec-eval-op
+  comp-eval-gate-op:
+    executorLabel: exec-eval-gate-op
+    inputDefinitions:
+      parameters:
+        api_base_url:
+          defaultValue: http://127.0.0.1:8000
+          isOptional: true
+          parameterType: STRING
   comp-load-graph-op:
     executorLabel: exec-load-graph-op
   comp-update-metadata-op:
@@ -12,19 +20,20 @@ components:
     executorLabel: exec-validate-graph-op
 deploymentSpec:
   executors:
-    exec-eval-op:
+    exec-eval-gate-op:
       container:
         args:
         - --executor_input
         - '{{$}}'
         - --function_to_execute
-        - eval_op
+        - eval_gate_op
         command:
         - sh
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'requests>=2.31.0'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -38,8 +47,34 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef eval_op():\n    \"\"\"Run evaluation gate (placeholder).\"\"\"\
-          \n    print(\"TODO: run eval gate\")\n\n"
+          \ *\n\ndef eval_gate_op(api_base_url: str = \"http://127.0.0.1:8000\"):\n\
+          \    \"\"\"Run evaluation gate against API.\"\"\"\n    import subprocess\n\
+          \    import sys\n    from pathlib import Path\n\n    workspace = Path(\"\
+          /workspace\")\n    eval_script = workspace / \"eval\" / \"run_eval.py\"\n\
+          \    golden_queries = workspace / \"eval\" / \"golden_queries.jsonl\"\n\
+          \    golden_queries_hard = workspace / \"eval\" / \"golden_queries_hard.jsonl\"\
+          \n\n    if not eval_script.exists():\n        print(f\"Error: Eval script\
+          \ not found: {eval_script}\", file=sys.stderr)\n        sys.exit(1)\n\n\
+          \    if not golden_queries.exists():\n        print(f\"Error: Golden queries\
+          \ file not found: {golden_queries}\", file=sys.stderr)\n        sys.exit(1)\n\
+          \n    if not golden_queries_hard.exists():\n        print(f\"Error: Hard\
+          \ golden queries file not found: {golden_queries_hard}\", file=sys.stderr)\n\
+          \        sys.exit(1)\n\n    print(f\"Running evaluation gate against API:\
+          \ {api_base_url}\")\n    print(\"=\" * 70)\n\n    # Run first eval set\n\
+          \    print(\"\\nRunning eval/golden_queries.jsonl...\")\n    result1 = subprocess.run(\n\
+          \        [sys.executable, str(eval_script), \"--gold\", str(golden_queries),\
+          \ \"--k\", \"5\", \"--base-url\", api_base_url],\n        cwd=str(workspace),\n\
+          \    )\n\n    if result1.returncode != 0:\n        print(f\"\\n\u2717 Evaluation\
+          \ failed on golden_queries.jsonl (exit code {result1.returncode})\", file=sys.stderr)\n\
+          \        sys.exit(1)\n\n    # Run second eval set\n    print(\"\\nRunning\
+          \ eval/golden_queries_hard.jsonl...\")\n    result2 = subprocess.run(\n\
+          \        [sys.executable, str(eval_script), \"--gold\", str(golden_queries_hard),\
+          \ \"--k\", \"5\", \"--base-url\", api_base_url],\n        cwd=str(workspace),\n\
+          \    )\n\n    if result2.returncode != 0:\n        print(f\"\\n\u2717 Evaluation\
+          \ failed on golden_queries_hard.jsonl (exit code {result2.returncode})\"\
+          , file=sys.stderr)\n        sys.exit(1)\n\n    print(\"\\n\" + \"=\" * 70)\n\
+          \    print(\"\u2713 Evaluation gate passed - all queries succeeded\")\n\
+          \    print(\"=\" * 70)\n\n"
         image: python:3.11-slim
     exec-load-graph-op:
       container:
@@ -135,27 +170,31 @@ deploymentSpec:
           \n"
         image: python:3.11-slim
 pipelineInfo:
-  description: Validate, update metadata, load, and gate graph artifact
+  description: Validate, update metadata, eval gate graph artifact
   name: graphrag-validation-pipeline
 root:
   dag:
     tasks:
-      eval-op:
+      eval-gate-op:
         cachingOptions:
           enableCache: true
         componentRef:
-          name: comp-eval-op
+          name: comp-eval-gate-op
         dependentTasks:
-        - load-graph-op
+        - update-metadata-op
+        inputs:
+          parameters:
+            api_base_url:
+              componentInputParameter: api_base_url
         taskInfo:
-          name: eval-op
+          name: eval-gate-op
       load-graph-op:
         cachingOptions:
           enableCache: true
         componentRef:
           name: comp-load-graph-op
         dependentTasks:
-        - update-metadata-op
+        - eval-gate-op
         taskInfo:
           name: load-graph-op
       update-metadata-op:
@@ -174,5 +213,11 @@ root:
           name: comp-validate-graph-op
         taskInfo:
           name: validate-graph-op
+  inputDefinitions:
+    parameters:
+      api_base_url:
+        defaultValue: http://127.0.0.1:8000
+        isOptional: true
+        parameterType: STRING
 schemaVersion: 2.1.0
 sdkVersion: kfp-2.15.2
