@@ -1,113 +1,19 @@
 # Production-Grade GraphRAG for Kubernetes Incident Reasoning
 
-This system provides deterministic, explainable reasoning over Kubernetes infrastructure incidents using an incident-centric knowledge graph.
+This system provides deterministic, explainable reasoning over Kubernetes infrastructure incidents using an incident-centric knowledge graph. I built it because naive vector RAG breaks down for incident reasoning in three specific ways: ambiguous symptoms ("kubelet crash" matches many incidents with different root causes that embeddings can't tell apart), similar components with distinct failure modes (semantic similarity conflates unrelated incidents on the same component), and causal correctness (incident reasoning needs precise chains — component → failure mode → root cause — not just topical relevance). Instead of embeddings and a black-box LLM, this system answers questions like *"What causes kubelet to crash with concurrent map writes?"* by walking typed graph relationships and requiring every claim to carry a citation back to source evidence.
 
-Unlike black-box LLM or vector-based RAG systems, it enforces causal correctness, provenance grounding, and reproducible evaluation through structured graph traversal and rule-based retrieval.
+[![CI](https://img.shields.io/badge/eval-CI--gated-blue.svg)](.github/workflows/eval.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Problem Statement
+## Key features / architecture
 
-Naive vector RAG fails for infrastructure incident reasoning due to three fundamental limitations:
-
-1. **Ambiguous symptoms**: Queries like "kubelet crash" match multiple incidents with similar symptoms but different root causes. Vector similarity cannot distinguish between a race condition and a divide-by-zero error.
-
-2. **Similar components**: Multiple incidents affect the same component (e.g., kubelet) but have distinct failure modes and root causes. Semantic similarity conflates unrelated incidents.
-
-3. **Causal correctness**: Incident reasoning requires precise causal chains (component → failure mode → root cause), not just topical relevance. Vector search cannot enforce structural constraints.
-
-This system answers questions such as:
-- "What causes kubelet to crash with concurrent map writes?"
-- "Why does the API server create invalid IP addresses when service name is empty?"
-- "What incident involves kube-scheduler panic and division by zero?"
-
-Each answer is grounded in explicit graph relationships with provenance, not inferred from embeddings.
-
-## Core Idea: Deterministic GraphRAG
-
-The system uses an incident-centric knowledge graph where:
-
-- **Normalized node types** ensure consistent entity representation (incident, component, failure_mode, root_cause, trigger, artifact, concept).
-- **Deterministic anchor extraction** maps natural language queries to graph entities using synonym mappings and explicit pattern matching, not embeddings.
-- **Graph traversal** follows typed relationships (AFFECTS, EXHIBITS, CAUSED_BY, etc.) to find incident subgraphs.
-- **Scoring** ranks incidents by anchor match strength and graph connectivity, not by vector similarity.
-
-This system contains no trained models and performs no probabilistic inference. All retrieval, ranking, and answer generation are deterministic and rule-based. The same query produces the same results across runs, and every fact in the response can be traced to a specific graph edge with evidence references.
-
-## Graph Data Model
-
-### Node Types
-
-- **incident**: First-class anchor representing a specific failure event (e.g., "128638", "124930").
-- **component**: Kubernetes component affected by incidents (e.g., "kubelet", "kube-scheduler", "kube-apiserver").
-- **failure_mode**: How the incident manifests (e.g., "crash", "panic", "oom", "degradation", "validation_error").
-- **root_cause**: Underlying cause of the failure (e.g., "unsynchronized-concurrent-access", "division-by-zero", "validation-gaps").
-- **trigger**: Event or condition that activates the incident (e.g., "pod-configuration", "feature-gate").
-- **artifact**: Code artifacts involved (e.g., "containerMap", "ContainerMap.Add").
-- **concept**: Abstract concepts for context (e.g., "concurrency-control", "scheduler-scoring-logic").
-
-### Relationship Types
-
-- **AFFECTS**: incident → component (which component is affected).
-- **EXHIBITS**: incident → failure_mode (how the incident manifests).
-- **CAUSED_BY**: incident → root_cause (underlying cause).
-- **TRIGGERED_BY**: incident → trigger (activation condition).
-- **USES**: component → artifact (code artifacts used by components).
-- **INVOLVES**: incident → concept (contextual concepts, not causal).
-
-Incidents are first-class anchors because they are the primary query target. The system retrieves incidents, not generic entities, and explains them through their relationships to components, failure modes, and root causes.
-
-## Provenance & Grounding Guarantees
-
-Every key factual claim (AFFECTS, EXHIBITS, CAUSED_BY, TRIGGERED_BY, USES) must have:
-
-- **edge-level evidence_refs**: List of source IDs pointing to provenance entries.
-- **sources**: Resolved source objects with kind (github_issue, doc, kep), title, URL, and reference (e.g., "kubernetes/kubernetes#128638").
-
-The system enforces "no citation, no claim": the `/ask` endpoint filters out any Tier-1 fact that lacks `evidence_refs`. If critical facts (component, failure_mode, root_cause) are missing citations, the API returns a refusal response rather than emitting ungrounded claims. The loader validates that all required edges have `evidence_refs` before loading into Neo4j, ensuring data integrity at ingestion time.
-
-## Answer Semantics (Tiering)
-
-The system separates hard evidence from contextual information:
-
-- **Tier 1 facts** (AFFECTS, EXHIBITS, CAUSED_BY, TRIGGERED_BY, USES): Causal relationships that appear in the main narrative and evidence bullets. These require citations.
-
-- **Tier 2 context** (INVOLVES): Non-causal concepts that provide context but do not explain causality. These appear only in the `context_concepts` field, never in the summary or evidence bullets.
-
-The `/ask` endpoint enforces this separation:
-- `summary`: Single professionally formatted sentence using only Tier-1 facts.
-- `evidence_bullets`: One bullet per Tier-1 fact with formatted text and provenance.
-- `context_concepts`: Tier-2 facts listed separately, not interwoven with causal explanation.
-
-Tier-2 concepts never appear in the causal narrative. This prevents concepts like "concurrency-control" from being presented as root causes when they are merely contextual.
-
-## Evaluation & Safety Gates
-
-The evaluation harness (`eval/run_eval.py`) enforces multiple correctness criteria:
-
-- **Golden queries**: Curated test cases with expected incident IDs (`eval/golden_queries.jsonl`, `eval/golden_queries_hard.jsonl`).
-- **Accuracy@k**: Top-1 correctness and recall@k metrics.
-- **Negative-evidence assertions**: Queries can specify forbidden root causes, failure modes, components, or incidents. The eval fails if any forbidden item appears in the response.
-- **Provenance enforcement**: Queries with `require_provenance: true` must have all Tier-1 facts cited. Uncited facts trigger eval failures.
-- **Runbook-format enforcement**: Queries with `require_runbook_format: true` must have summary without Tier-2 concepts and evidence_bullets count matching tier1_facts count.
-
-Unlike typical RAG evaluations that measure only accuracy, this harness enforces correctness through negative-evidence checks, provenance validation, and format constraints. The CI gate (`.github/workflows/eval.yml`) runs both eval files on every PR. Any regression (accuracy drop, negative-evidence violation, provenance failure, format violation) fails the build. This prevents silent degradation.
-
-## Dataset Artifact Discipline
-
-The graph dataset is treated as a versioned artifact:
-
-- **complete_graph.json**: Canonical dataset file containing all entities, edges, and sources.
-- **graph_metadata.json**: Metadata including SHA256 hash, node/edge counts, and provenance statistics.
-- **SHA256 locking**: The loader verifies the graph file hash matches `graph_metadata.json` before loading. Mismatch aborts the load.
-- **Schema validation**: `graph/validate_graph.py` checks unique node IDs, required fields, valid edge endpoints, and source validity.
-- **Invariant validation**: Enforces graph rules (every incident has exactly 1 EXHIBITS → failure_mode, 1 CAUSED_BY → root_cause, >=1 AFFECTS → component).
-
-The metadata script (`scripts/update_graph_metadata.py`) generates metadata deterministically. The `--check` flag verifies metadata matches computed values, failing on drift.
-
-This prevents silent data corruption: graph changes are detected by hash mismatch, schema violations are caught before load, and invariant violations fail validation.
-
-## System Architecture
-
-### Architecture Diagram
+- **Deterministic anchor extraction and traversal** — natural-language queries map to graph entities via synonym mappings and explicit pattern matching, not embeddings. Same query, same result, every run.
+- **Normalized graph schema** — `incident`, `component`, `failure_mode`, `root_cause`, `trigger`, `artifact`, and `concept` node types, connected by typed edges (`AFFECTS`, `EXHIBITS`, `CAUSED_BY`, `TRIGGERED_BY`, `USES`, `INVOLVES`). Incidents are first-class query anchors, not generic entities.
+- **"No citation, no claim" provenance enforcement** — every Tier-1 factual edge must carry `evidence_refs` resolving to a real source (GitHub issue, doc, or KEP). The `/ask` endpoint refuses to answer rather than emit an uncited claim, and the loader rejects ingestion of edges missing evidence.
+- **Tiered answers** — causal facts (Tier 1) go in the narrative and evidence bullets; contextual concepts (Tier 2, `INVOLVES`) are reported separately and never presented as if they explained causality.
+- **Dataset artifact discipline** — `complete_graph.json` is a versioned artifact locked by a SHA256 hash in `graph_metadata.json`; the loader refuses to load on a hash mismatch, and `graph/validate_graph.py` enforces schema and structural invariants (every incident has exactly one `EXHIBITS`, one `CAUSED_BY`, and at least one `AFFECTS`) before anything touches Neo4j.
+- **CI-gated evaluation harness** (`eval/run_eval.py`) — golden queries with accuracy@k, negative-evidence assertions (forbidden root causes/components must never appear), provenance enforcement, and runbook-format checks. `.github/workflows/eval.yml` runs both eval sets on every PR against a Neo4j service container; any regression fails the build.
 
 ```mermaid
 flowchart TD
@@ -121,52 +27,33 @@ flowchart TD
     Loader[Loader<br/>deterministic load into Neo4j]
     EvalHarness[Eval Harness<br/>golden queries + negative-evidence + provenance + format checks]
     CIGate[CI Gate<br/>GitHub Actions]
-    
+
     GraphArtifact --> GraphValidation
     GraphMetadata --> GraphValidation
     GraphValidation -->|Hash lock| Loader
     Loader --> Neo4j
-    
+
     User --> FastAPI
     FastAPI --> Retrieval
     Retrieval --> Neo4j
     Neo4j --> Retrieval
     Retrieval --> FastAPI
     FastAPI -->|No citation, no claim<br/>Tier 1 vs Tier 2| User
-    
+
     EvalHarness --> FastAPI
     CIGate --> Neo4j
     CIGate --> Loader
     CIGate --> EvalHarness
     EvalHarness -.->|Negative evidence + provenance + format| CIGate
-    
-    style GraphValidation fill:#e1f5ff
-    style Loader fill:#e1f5ff
-    style FastAPI fill:#fff4e1
-    style Retrieval fill:#fff4e1
-    style Neo4j fill:#e8f5e9
-    style EvalHarness fill:#fce4ec
-    style CIGate fill:#fce4ec
 ```
 
-The system follows a deterministic pipeline:
+## Screenshot / Demo
 
-1. **FastAPI API**: REST API with `/query`, `/explain`, and `/ask` endpoints.
-2. **Neo4j**: Graph database storing entities and relationships with both typed and generic relationship formats for compatibility.
-3. **Retrieval Service**: Anchor extraction, graph traversal, fact extraction with deterministic deduplication.
-4. **Ask Service**: Runbook-grade answer generation with tiering, provenance filtering, and evidence bullet formatting.
-5. **Eval Harness**: Evaluation against golden queries with multiple correctness checks.
-6. **CI Gate**: Automated evaluation on PRs with Neo4j service container.
+<!-- VERIFY / TODO(owner): Capture two things and embed them here. (1) A terminal screenshot or asciinema clip of `curl -X POST http://localhost:8000/ask -d '{"question": "What causes kubelet to crash with concurrent map writes?"}'` showing the JSON response — specifically the `summary`, `evidence_bullets` with their `evidence_refs`, and `context_concepts` fields, since the tiering/citation behavior is the whole point of this project and is invisible from prose alone. (2) A Neo4j Browser screenshot of one incident's subgraph (the incident node plus its AFFECTS/EXHIBITS/CAUSED_BY/TRIGGERED_BY neighbors) to make the graph model concrete at a glance. -->
 
-The graph loader is deterministic and idempotent: it clears the graph, validates schema/invariants/hash, then loads entities and relationships in batch operations.
-
-There is no LLM dependency in the current implementation. All retrieval, ranking, and formatting is rule-based and deterministic. This is by design: LLM integration (Phase 4) will be additive, not replacing the deterministic core.
-
-## How to Run Locally
+## How to run locally
 
 ### Quickstart (Docker)
-
-The fastest way to get started:
 
 ```bash
 # Ensure Docker Desktop is running
@@ -184,122 +71,69 @@ make load
 make eval-docker
 ```
 
-This will start Neo4j and the API in Docker containers, load the graph, and run both eval sets. The API will be available at `http://localhost:8000`.
+This starts Neo4j and the API in Docker containers, loads the graph, and runs both eval sets. The API is available at `http://localhost:8000`.
 
-Additional Makefile targets:
-- `make down`: Stop services and remove volumes
-- `make smoke`: Quick health check and test query (against local API)
-- `make smoke-docker`: Quick health check and test query (against containerized API)
-- `make eval`: Run evals against local API (default http://127.0.0.1:8000)
-- `make eval-docker`: Run evals against containerized API (ensures services are up)
-- `make clean`: Remove all containers and volumes
+Other Makefile targets: `make down` (stop + remove volumes), `make smoke` / `make smoke-docker` (health check + test query), `make eval` (evals against a local API), `make clean` (remove all containers and volumes).
 
-### Manual Setup
+### Manual setup
 
-#### Prerequisites
-
-- Python 3.11+
-- Neo4j 5.x (Docker or local installation)
-- Neo4j credentials (default: `neo4j`/`testpassword`)
-
-### Start Neo4j
-
-Using Docker:
-```bash
-docker run -d \
-  --name neo4j \
-  -p 7474:7474 -p 7687:7687 \
-  -e NEO4J_AUTH=neo4j/testpassword \
-  neo4j:5
-```
-
-Or use a local Neo4j installation with authentication configured.
-
-### Load Graph
+Prerequisites: Python 3.11+, Neo4j 5.x (Docker or local), Neo4j credentials (default `neo4j`/`testpassword`).
 
 ```bash
+# Start Neo4j
+docker run -d --name neo4j -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/testpassword neo4j:5
+
+# Load the graph (validates schema, invariants, and hash first)
 cd graph_rag_api
 python scripts/load_graph.py
-```
 
-This will:
-1. Validate schema and invariants
-2. Verify SHA256 hash against metadata
-3. Clear existing graph
-4. Load entities and relationships
-5. Print verification statistics
-
-### Run API
-
-```bash
-cd graph_rag_api
+# Run the API
 uvicorn app.main:app --port 8000
 ```
 
-The API will be available at `http://localhost:8000`. Endpoints:
-- `POST /query`: Graph query with anchor extraction
-- `GET /explain/{incident_id}`: Explain a specific incident
-- `POST /ask`: Ask a question, get runbook-grade answer
-- `GET /debug/stats`: Graph statistics
-
-### Run Evaluations
+Endpoints: `POST /query` (graph query with anchor extraction), `GET /explain/{incident_id}`, `POST /ask` (runbook-grade tiered answer), `GET /debug/stats`.
 
 ```bash
-# Basic eval set
+# Run evaluations
 python eval/run_eval.py --gold eval/golden_queries.jsonl --k 5 --base-url http://127.0.0.1:8000
-
-# Hard eval set
 python eval/run_eval.py --gold eval/golden_queries_hard.jsonl --k 5 --base-url http://127.0.0.1:8000
 ```
 
 Both should report full accuracy with zero negative-evidence, provenance, or format violations.
 
-### Update Graph Metadata
+After modifying `complete_graph.json`, regenerate and verify the locked metadata:
 
-After modifying `complete_graph.json`:
 ```bash
-python scripts/update_graph_metadata.py
+python scripts/update_graph_metadata.py           # regenerate
+python scripts/update_graph_metadata.py --check    # verify metadata matches computed values
 ```
 
-To verify metadata is current:
-```bash
-python scripts/update_graph_metadata.py --check
-```
+## Design decisions & tradeoffs
 
-## Roadmap
+*(My reasoning, in my own words, for the choices that shaped this system.)*
 
-**Phase 1 (Complete)**: Deterministic GraphRAG with evaluation and CI gates.
-- Incident-centric knowledge graph
-- Deterministic anchor extraction and retrieval
-- Provenance enforcement ("no citation, no claim")
-- Fact tiering (Tier-1 evidence vs Tier-2 context)
-- Runbook-grade answer formatting
-- Comprehensive evaluation harness
-- CI gate preventing regressions
-- Dataset artifact discipline (hash locking, validation)
+- **Deterministic graph traversal over embeddings, on purpose.** I chose to build zero trained models into this pipeline. The tradeoff is real: this system can't generalize to a phrasing it doesn't have a synonym mapping for, the way a vector search would. What it buys back is reproducibility (same query, same answer, every run) and debuggability (a wrong answer traces to a specific rule or a specific graph edge, not to "the embedding was close enough"). For incident postmortems, where being confidently wrong is worse than saying "I don't know," I decided that tradeoff was worth it.
+- **"No citation, no claim" as a hard API-level rule, not a guideline.** The `/ask` endpoint filters out uncited Tier-1 facts and returns a refusal rather than a plausible-sounding but ungrounded answer. This is stricter than most RAG systems, which usually degrade gracefully into fluent hallucination. I'd rather the API say nothing than say something wrong.
+- **Tier 1 vs Tier 2 facts as a first-class API concept**, not just an internal implementation detail — so that a contextual concept (e.g., "concurrency-control") can never masquerade as a root cause in the response. This came directly from wanting to prevent a specific failure mode I could picture happening otherwise.
+- **Neo4j over a generic vector store.** The data model is inherently relational (incident → component → failure_mode → root_cause chains), so a property graph with typed relationships is a more natural fit than nearest-neighbor search over flattened embeddings. Tradeoff: onboarding a new incident requires curating it into the typed schema by hand (or via the planned Phase 2 pipeline) rather than just embedding a document and dropping it in.
+- **Hash-locked dataset as a deliberate artifact-discipline choice.** Treating `complete_graph.json` like a build artifact (SHA256-locked, schema-validated, invariant-checked before load) means a silent data edit can't corrupt the graph without the loader refusing to run. This is more ceremony than most side projects bother with, but the whole system's credibility rests on the graph being trustworthy.
+- **CI eval gate mirrors a real test suite, not a vibes check.** Negative-evidence assertions (a query can assert a root cause must *not* appear) are, in my view, more informative than accuracy-only evals, because they catch the specific failure mode of "right incident, wrong reasoning" that a top-1 accuracy score would miss.
 
-**Phase 2 (Planned)**: Kubeflow pipeline for ingestion, validation, evaluation, and gating.
-- Automated graph ingestion from sources
-- Validation pipeline (schema, invariants, hash)
-- Evaluation pipeline with gating decisions
-- Metadata generation and versioning
-- Integration with ML metadata store
+This is not run against a live Kubernetes cluster or real-time incident feed — the graph (`complete_graph.json`) is a curated dataset sourced from specific historical Kubernetes GitHub issues, not a live-ingestion pipeline. "prod-graph-rag" refers to production-grade *engineering discipline* (CI gates, hash locking, provenance) applied to this dataset, not a system currently deployed against production traffic.
 
-### Kubeflow Pipelines (Phase 2)
+## Status, roadmap & known limits
 
-A minimal pipeline skeleton exists in `pipelines/` that demonstrates the intended orchestration flow: validate graph → update metadata → load graph → eval gate. The pipeline uses Kubeflow Pipelines v2 (KFP v2) and compiles to YAML for deployment. Current components are placeholders; the pipeline will gate on validation failures and evaluation regressions, preventing invalid graph artifacts from being loaded. This is scaffold only; existing API behavior is unchanged.
+**Phase 1 — complete.** Deterministic GraphRAG with evaluation and CI gates: incident-centric knowledge graph, deterministic anchor extraction, provenance enforcement, fact tiering, runbook-grade formatting, comprehensive eval harness, CI regression gate, dataset artifact discipline.
 
-**Phase 3 (Optional)**: Hybrid vector + graph retrieval.
-- Vector embeddings for semantic similarity and recall expansion
-- Graph structure remains the authoritative grounding layer for causal correctness
-- Hybrid ranking combines both signals, with graph facts as the source of truth
-- Evaluation to measure improvement over graph-only while maintaining correctness guarantees
+**Phase 2 — in progress.** Kubeflow pipeline (KFP v2, `pipelines/`) for automated graph ingestion, validation, evaluation gating, and metadata versioning. Three of its four steps already run the same real checks used standalone — schema/invariant validation, SHA256 metadata verification, and golden-query regression gating — while the Neo4j load step is still a placeholder pending integration.
 
-**Phase 4 (Future)**: LLM-backed narrative with strict grounding.
-- LLM generates natural language from structured facts
-- Strict grounding: every claim must map to a cited fact
-- Evaluation to detect hallucination or ungrounded claims
-- Fallback to deterministic templates if grounding fails
+**Phase 3 — optional.** Hybrid vector + graph retrieval, with the graph remaining the authoritative grounding layer and vector similarity only expanding recall.
 
-Each phase builds on the deterministic foundation. LLM integration will not replace the structured retrieval core; it will enhance presentation while maintaining correctness guarantees.
+**Phase 4 — future.** LLM-backed narrative generation layered on top of the structured facts, with strict grounding checks and a fallback to deterministic templates if grounding fails. The deterministic core will not be replaced by this.
 
+**Known limits today:** no trained/ML component means recall is bounded by the synonym/pattern mappings, not semantic similarity — a query phrased very differently from the mapped vocabulary may not resolve; the graph dataset is curated, not live-ingested.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
